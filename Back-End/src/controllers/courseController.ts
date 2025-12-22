@@ -4,6 +4,9 @@ import Chapter from "../models/Chapter";
 import Question from "../models/Question";
 import Lesson from "../models/Lesson";
 import UserProgress from "../models/UserProgress";
+import Certificate from "../models/Certificate";
+import User from "../models/User";
+import { generateCertificateNumber, generateVerificationCode } from "../utils/certificateGenerator";
 
 interface SubmitQuizBody {
   answers: {
@@ -706,10 +709,51 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
       progress.completedAt = new Date();
       progress.certificateIssued = true;
       progress.certificateIssuedAt = new Date();
+
+      // Get user details
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      // Create certificate
+      const certificate = await Certificate.create({
+        userId,
+        courseId: id,
+        userName: user.name,
+        userEmail: user.email,
+        courseTitle: course.title,
+        completionDate: new Date(),
+        certificateNumber: generateCertificateNumber(),
+        verificationCode: generateVerificationCode(),
+        finalExamScore: score,
+        issuedAt: new Date(),
+      });
+
+      await progress.save();
+
+      res.status(200).json({
+        score,
+        correctCount,
+        totalQuestions,
+        passed,
+        passingScore: course.finalExam.passingScore,
+        courseCompleted: progress.courseCompleted,
+        certificateIssued: progress.certificateIssued,
+        certificate: {
+          certificateNumber: certificate.certificateNumber,
+          verificationCode: certificate.verificationCode,
+          issuedAt: certificate.issuedAt,
+        },
+        results,
+      });
+      return;
     }
 
     await progress.save();
 
+    // If not passed or already completed
     res.status(200).json({
       score,
       correctCount,
@@ -719,6 +763,76 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
       courseCompleted: progress.courseCompleted,
       certificateIssued: progress.certificateIssued,
       results,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserCertificate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const certificate = await Certificate.findOne({ userId, courseId });
+
+    if (!certificate) {
+      res.status(404).json({ message: "Certificate not found. You may need to complete the course first." });
+      return;
+    }
+
+    res.status(200).json({
+      certificate: {
+        certificateNumber: certificate.certificateNumber,
+        verificationCode: certificate.verificationCode,
+        userName: certificate.userName,
+        courseTitle: certificate.courseTitle,
+        completionDate: certificate.completionDate,
+        finalExamScore: certificate.finalExamScore,
+        issuedAt: certificate.issuedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyCertificate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { certificateNumber, verificationCode } = req.query;
+
+    if (!certificateNumber || !verificationCode) {
+      res.status(400).json({ message: "Certificate number and verification code are required" });
+      return;
+    }
+
+    const certificate = await Certificate.findOne({
+      certificateNumber: certificateNumber as string,
+      verificationCode: verificationCode as string,
+    });
+
+    if (!certificate) {
+      res.status(404).json({
+        valid: false,
+        message: "Certificate not found or verification code is incorrect",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      valid: true,
+      certificate: {
+        certificateNumber: certificate.certificateNumber,
+        userName: certificate.userName,
+        courseTitle: certificate.courseTitle,
+        completionDate: certificate.completionDate,
+        issuedAt: certificate.issuedAt,
+      },
     });
   } catch (error) {
     next(error);
