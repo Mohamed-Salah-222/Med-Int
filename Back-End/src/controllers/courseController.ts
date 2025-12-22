@@ -12,6 +12,13 @@ interface SubmitQuizBody {
   }[];
 }
 
+interface SubmitTestBody {
+  answers: {
+    questionId: string;
+    selectedAnswer: string;
+  }[];
+}
+
 export const getCourse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -302,6 +309,207 @@ export const getUserProgress = async (req: Request, res: Response, next: NextFun
         courseCompleted: progress.courseCompleted,
         certificateIssued: progress.certificateIssued,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const chapter = await Chapter.findById(id);
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    if (!chapter.isPublished) {
+      res.status(403).json({ message: "This chapter is not published yet" });
+      return;
+    }
+
+    // Check if user completed all lessons in this chapter
+    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+    const chapterLessons = await Lesson.find({ chapterId: id });
+    const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
+    const allLessonsCompleted = chapterLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
+
+    if (!allLessonsCompleted) {
+      res.status(403).json({
+        message: "You must complete all lessons in this chapter before taking the test",
+      });
+      return;
+    }
+
+    // Check cooldown
+    const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+    if (cooldown) {
+      const cooldownHours = chapter.chapterTest.cooldownHours;
+      const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
+      const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+      if (timeSinceLastAttempt < cooldownMs) {
+        const remainingMs = cooldownMs - timeSinceLastAttempt;
+        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+        res.status(403).json({
+          message: "Test is on cooldown",
+          remainingMinutes,
+          canRetakeAt: new Date(Date.now() + remainingMs),
+        });
+        return;
+      }
+    }
+
+    // Fetch questions
+    const questions = await Question.find({
+      _id: { $in: chapter.chapterTest.questions },
+    }).select("-correctAnswer -explanation");
+
+    // Randomize options
+    const randomizedQuestions = questions.map((q) => {
+      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+      return {
+        _id: q._id,
+        questionText: q.questionText,
+        options: shuffledOptions,
+        type: q.type,
+        difficulty: q.difficulty,
+      };
+    });
+
+    res.status(200).json({
+      test: {
+        chapterId: chapter._id,
+        chapterTitle: chapter.title,
+        questions: randomizedQuestions,
+        totalQuestions: randomizedQuestions.length,
+        passingScore: chapter.chapterTest.passingScore,
+        timeLimit: chapter.chapterTest.timeLimit,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitChapterTest = async (req: Request<{ id: string }, {}, SubmitTestBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const { answers } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const chapter = await Chapter.findById(id);
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    // Get progress BEFORE allowing submission
+    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+    // Check cooldown BEFORE allowing submission
+    const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+    if (cooldown) {
+      const cooldownHours = chapter.chapterTest.cooldownHours;
+      const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
+      const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+      if (timeSinceLastAttempt < cooldownMs) {
+        const remainingMs = cooldownMs - timeSinceLastAttempt;
+        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+        res.status(403).json({
+          message: "Test is on cooldown. You cannot submit another attempt yet.",
+          remainingMinutes,
+          canRetakeAt: new Date(Date.now() + remainingMs),
+        });
+        return;
+      }
+    }
+
+    // Fetch questions
+    const questions = await Question.find({
+      _id: { $in: chapter.chapterTest.questions },
+    });
+
+    if (questions.length === 0) {
+      res.status(400).json({ message: "No test questions found for this chapter" });
+      return;
+    }
+
+    // Calculate score
+    let correctCount = 0;
+    const results = [];
+
+    for (const answer of answers) {
+      const question = questions.find((q) => q._id.toString() === answer.questionId);
+
+      if (question) {
+        const isCorrect = question.correctAnswer === answer.selectedAnswer;
+        if (isCorrect) correctCount++;
+
+        results.push({
+          questionId: question._id,
+          questionText: question.questionText,
+          selectedAnswer: answer.selectedAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect,
+          explanation: question.explanation,
+        });
+      }
+    }
+
+    const totalQuestions = questions.length;
+    const score = Math.round((correctCount / totalQuestions) * 100);
+    const passed = score >= chapter.chapterTest.passingScore;
+
+    // Record attempt
+    progress.chapterTestAttempts.push({
+      chapterId: id as any,
+      attemptedAt: new Date(),
+      score: correctCount,
+      passed,
+    } as any);
+
+    // Update cooldown
+    const existingCooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+    if (existingCooldown) {
+      existingCooldown.lastAttemptAt = new Date();
+    } else {
+      progress.chapterTestCooldowns.push({
+        chapterId: id as any,
+        lastAttemptAt: new Date(),
+      } as any);
+    }
+
+    await progress.save();
+
+    res.status(200).json({
+      score,
+      correctCount,
+      totalQuestions,
+      passed,
+      passingScore: chapter.chapterTest.passingScore,
+      results,
     });
   } catch (error) {
     next(error);
