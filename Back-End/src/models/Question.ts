@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IQuestion extends Document {
   questionText: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: string; // Changed from number to string
   type: "quiz" | "test" | "exam";
   explanation?: string;
   audioUrl?: string;
@@ -27,10 +27,8 @@ const questionSchema = new Schema<IQuestion>(
       },
     },
     correctAnswer: {
-      type: Number,
+      type: String, // Changed from Number to String
       required: true,
-      min: 0,
-      max: 3,
     },
     type: {
       type: String,

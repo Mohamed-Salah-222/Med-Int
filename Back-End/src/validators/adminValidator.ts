@@ -33,7 +33,7 @@ export const createQuestionValidator = [
 
   body("options.*").trim().notEmpty().withMessage("All options must have text"),
 
-  body("correctAnswer").isInt({ min: 0, max: 3 }).withMessage("Correct answer must be between 0 and 3"),
+  body("correctAnswer").trim().notEmpty().withMessage("Correct answer is required"), // Changed validation
 
   body("type").isIn(["quiz", "test", "exam"]).withMessage("Type must be 'quiz', 'test', or 'exam'"),
 
@@ -53,3 +53,5 @@ export const assignQuestionsValidator = [
 
   body("questionIds.*").isMongoId().withMessage("All question IDs must be valid"),
 ];
+
+export const linkChapterValidator = [body("courseId").trim().notEmpty().withMessage("Course ID is required").isMongoId().withMessage("Invalid course ID"), body("chapterId").trim().notEmpty().withMessage("Chapter ID is required").isMongoId().withMessage("Invalid chapter ID")];

@@ -29,7 +29,7 @@ interface CreateLessonBody {
 interface CreateQuestionBody {
   questionText: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: string; // Changed to string
   type: "quiz" | "test" | "exam";
   explanation?: string;
   audioUrl?: string;
@@ -186,10 +186,16 @@ export const createQuestion = async (req: Request<{}, {}, CreateQuestionBody>, r
 
     const { questionText, options, correctAnswer, type, explanation, audioUrl, difficulty } = req.body;
 
+    // Validate that correctAnswer is one of the options
+    if (!options.includes(correctAnswer)) {
+      res.status(400).json({ message: "Correct answer must be one of the provided options" });
+      return;
+    }
+
     const question = await Question.create({
       questionText,
       options,
-      correctAnswer,
+      correctAnswer, // Now stores the actual text
       type,
       explanation,
       audioUrl,
