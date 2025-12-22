@@ -3,6 +3,7 @@ import Course from "../models/Course";
 import Chapter from "../models/Chapter";
 import Question from "../models/Question";
 import Lesson from "../models/Lesson";
+import UserProgress from "../models/UserProgress";
 
 interface SubmitQuizBody {
   answers: {
@@ -161,6 +162,12 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
   try {
     const { id } = req.params;
     const { answers } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
 
     const lesson = await Lesson.findById(id);
 
@@ -178,6 +185,7 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       return;
     }
 
+    // Calculate score
     let correctCount = 0;
     const results = [];
 
@@ -203,6 +211,38 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= lesson.quiz.passingScore;
 
+    // Update user progress if passed
+    if (passed) {
+      const chapter = await Chapter.findById(lesson.chapterId);
+      if (!chapter) {
+        res.status(404).json({ message: "Chapter not found" });
+        return;
+      }
+
+      const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+      // Check if lesson already completed
+      const existingLesson = progress.completedLessons.find((cl: any) => cl.lessonId.toString() === id);
+
+      if (!existingLesson) {
+        // First time passing this lesson
+        progress.completedLessons.push({
+          lessonId: id as any,
+          completedAt: new Date(),
+          quizScore: correctCount,
+          attempts: 1,
+          passed: true,
+        } as any);
+      } else {
+        // Update attempts count
+        existingLesson.attempts += 1;
+        existingLesson.quizScore = correctCount;
+        existingLesson.completedAt = new Date();
+      }
+
+      await progress.save();
+    }
+
     res.status(200).json({
       score,
       correctCount,
@@ -210,6 +250,58 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       passed,
       passingScore: lesson.quiz.passingScore,
       results,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getOrCreateProgress = async (userId: string, courseId: string) => {
+  let progress = await UserProgress.findOne({ userId, courseId });
+
+  if (!progress) {
+    progress = await UserProgress.create({
+      userId,
+      courseId,
+      currentChapterNumber: 1,
+      currentLessonNumber: 1,
+      completedLessons: [],
+      chapterTestAttempts: [],
+      chapterTestCooldowns: [],
+      finalExamAttempts: [],
+      courseCompleted: false,
+      certificateIssued: false,
+    });
+  }
+
+  return progress;
+};
+
+export const getUserProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { courseId } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const progress = await getOrCreateProgress(userId, courseId);
+
+    // Check if final exam was passed
+    const finalExamPassed = progress.finalExamAttempts.some((attempt: any) => attempt.passed);
+
+    res.status(200).json({
+      progress: {
+        currentChapter: progress.currentChapterNumber,
+        currentLesson: progress.currentLessonNumber,
+        completedLessons: progress.completedLessons.length,
+        chapterTestsCompleted: progress.chapterTestAttempts.filter((attempt: any) => attempt.passed).length,
+        finalExamPassed: finalExamPassed,
+        courseCompleted: progress.courseCompleted,
+        certificateIssued: progress.certificateIssued,
+      },
     });
   } catch (error) {
     next(error);
