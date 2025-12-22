@@ -19,6 +19,13 @@ interface SubmitTestBody {
   }[];
 }
 
+interface SubmitExamBody {
+  answers: {
+    questionId: string;
+    selectedAnswer: string;
+  }[];
+}
+
 export const getCourse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -509,6 +516,208 @@ export const submitChapterTest = async (req: Request<{ id: string }, {}, SubmitT
       totalQuestions,
       passed,
       passingScore: chapter.chapterTest.passingScore,
+      results,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFinalExam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // course ID
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const course = await Course.findById(id).populate("chapters");
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    if (!course.isPublished) {
+      res.status(403).json({ message: "This course is not published yet" });
+      return;
+    }
+
+    // Check if user passed all chapter tests
+    const progress = await getOrCreateProgress(userId, id);
+    const chapters = course.chapters as any[];
+
+    const passedChapterTests = progress.chapterTestAttempts.filter((attempt: any) => attempt.passed);
+
+    const allChaptersPassed = chapters.every((chapter) => passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
+
+    if (!allChaptersPassed) {
+      res.status(403).json({
+        message: "You must pass all chapter tests before taking the final exam",
+      });
+      return;
+    }
+
+    // Check cooldown
+    if (progress.finalExamCooldown?.lastAttemptAt) {
+      const cooldownHours = course.finalExam.cooldownHours;
+      const timeSinceLastAttempt = Date.now() - new Date(progress.finalExamCooldown.lastAttemptAt).getTime();
+      const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+      if (timeSinceLastAttempt < cooldownMs) {
+        const remainingMs = cooldownMs - timeSinceLastAttempt;
+        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+        res.status(403).json({
+          message: "Final exam is on cooldown",
+          remainingMinutes,
+          canRetakeAt: new Date(Date.now() + remainingMs),
+        });
+        return;
+      }
+    }
+
+    // Fetch questions
+    const questions = await Question.find({
+      _id: { $in: course.finalExam.questions as any },
+    }).select("-correctAnswer -explanation");
+
+    // Randomize options
+    const randomizedQuestions = questions.map((q) => {
+      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+      return {
+        _id: q._id,
+        questionText: q.questionText,
+        options: shuffledOptions,
+        type: q.type,
+        difficulty: q.difficulty,
+      };
+    });
+
+    res.status(200).json({
+      exam: {
+        courseId: course._id,
+        courseTitle: course.title,
+        questions: randomizedQuestions,
+        totalQuestions: randomizedQuestions.length,
+        passingScore: course.finalExam.passingScore,
+        timeLimit: course.finalExam.timeLimit,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExamBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // course ID
+    const { answers } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const course = await Course.findById(id);
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Get progress and check cooldown
+    const progress = await getOrCreateProgress(userId, id);
+
+    if (progress.finalExamCooldown?.lastAttemptAt) {
+      const cooldownHours = course.finalExam.cooldownHours;
+      const timeSinceLastAttempt = Date.now() - new Date(progress.finalExamCooldown.lastAttemptAt).getTime();
+      const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+      if (timeSinceLastAttempt < cooldownMs) {
+        const remainingMs = cooldownMs - timeSinceLastAttempt;
+        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+        res.status(403).json({
+          message: "Final exam is on cooldown. You cannot submit another attempt yet.",
+          remainingMinutes,
+          canRetakeAt: new Date(Date.now() + remainingMs),
+        });
+        return;
+      }
+    }
+
+    // Fetch questions
+    const questions = await Question.find({
+      _id: { $in: course.finalExam.questions as any },
+    });
+
+    if (questions.length === 0) {
+      res.status(400).json({ message: "No exam questions found for this course" });
+      return;
+    }
+
+    // Calculate score
+    let correctCount = 0;
+    const results = [];
+
+    for (const answer of answers) {
+      const question = questions.find((q) => q._id.toString() === answer.questionId);
+
+      if (question) {
+        const isCorrect = question.correctAnswer === answer.selectedAnswer;
+        if (isCorrect) correctCount++;
+
+        results.push({
+          questionId: question._id,
+          questionText: question.questionText,
+          selectedAnswer: answer.selectedAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect,
+          explanation: question.explanation,
+        });
+      }
+    }
+
+    const totalQuestions = questions.length;
+    const score = Math.round((correctCount / totalQuestions) * 100);
+    const passed = score >= course.finalExam.passingScore;
+
+    // Record attempt
+    progress.finalExamAttempts.push({
+      attemptedAt: new Date(),
+      score: correctCount,
+      passed,
+    } as any);
+
+    // Update cooldown
+    if (!progress.finalExamCooldown) {
+      progress.finalExamCooldown = { lastAttemptAt: new Date() } as any;
+    } else {
+      progress.finalExamCooldown.lastAttemptAt = new Date();
+    }
+
+    // If passed, mark course as completed and issue certificate
+    if (passed && !progress.courseCompleted) {
+      progress.courseCompleted = true;
+      progress.completedAt = new Date();
+      progress.certificateIssued = true;
+      progress.certificateIssuedAt = new Date();
+    }
+
+    await progress.save();
+
+    res.status(200).json({
+      score,
+      correctCount,
+      totalQuestions,
+      passed,
+      passingScore: course.finalExam.passingScore,
+      courseCompleted: progress.courseCompleted,
+      certificateIssued: progress.certificateIssued,
       results,
     });
   } catch (error) {
