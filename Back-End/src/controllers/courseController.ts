@@ -536,7 +536,12 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const course = await Course.findById(id).populate("chapters");
+    const course = await Course.findById(id).populate({
+      path: "chapters",
+      populate: {
+        path: "lessons",
+      },
+    });
 
     if (!course) {
       res.status(404).json({ message: "Course not found" });
@@ -548,22 +553,53 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Check if user passed all chapter tests
     const progress = await getOrCreateProgress(userId, id);
     const chapters = course.chapters as any[];
 
+    // Check 1: All lessons must be completed
+    const allLessons: any[] = [];
+    chapters.forEach((chapter) => {
+      if (chapter.lessons) {
+        allLessons.push(...chapter.lessons);
+      }
+    });
+
+    const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
+
+    const allLessonsCompleted = allLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
+
+    if (!allLessonsCompleted) {
+      const incompleteLessons = allLessons.filter((lesson) => !completedLessonIds.includes(lesson._id.toString()));
+
+      res.status(403).json({
+        message: "You must complete all lessons before taking the final exam",
+        incompleteLessons: incompleteLessons.map((l) => ({
+          lessonNumber: l.lessonNumber,
+          title: l.title,
+        })),
+      });
+      return;
+    }
+
+    // Check 2: All chapter tests must be passed
     const passedChapterTests = progress.chapterTestAttempts.filter((attempt: any) => attempt.passed);
 
     const allChaptersPassed = chapters.every((chapter) => passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
 
     if (!allChaptersPassed) {
+      const incompleteChapters = chapters.filter((chapter) => !passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
+
       res.status(403).json({
         message: "You must pass all chapter tests before taking the final exam",
+        incompleteChapters: incompleteChapters.map((c: any) => ({
+          chapterNumber: c.chapterNumber,
+          title: c.title,
+        })),
       });
       return;
     }
 
-    // Check cooldown
+    // Check cooldown (rest of your existing code stays the same)
     if (progress.finalExamCooldown?.lastAttemptAt) {
       const cooldownHours = course.finalExam.cooldownHours;
       const timeSinceLastAttempt = Date.now() - new Date(progress.finalExamCooldown.lastAttemptAt).getTime();
@@ -582,12 +618,11 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       }
     }
 
-    // Fetch questions
+    // Fetch questions (rest stays the same)
     const questions = await Question.find({
       _id: { $in: course.finalExam.questions as any },
     }).select("-correctAnswer -explanation");
 
-    // Randomize options
     const randomizedQuestions = questions.map((q) => {
       const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
       return {
@@ -832,6 +867,146 @@ export const verifyCertificate = async (req: Request, res: Response, next: NextF
         courseTitle: certificate.courseTitle,
         completionDate: certificate.completionDate,
         issuedAt: certificate.issuedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDetailedProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const progress = await getOrCreateProgress(userId, courseId);
+
+    // Get course with chapters and lessons
+    const course = await Course.findById(courseId).populate({
+      path: "chapters",
+      populate: {
+        path: "lessons",
+        select: "title lessonNumber isPublished",
+      },
+    });
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Build detailed progress
+    const chapters = course.chapters as any[];
+    const chaptersProgress = chapters.map((chapter) => {
+      const lessons = chapter.lessons || [];
+
+      const lessonsProgress = lessons.map((lesson: any) => {
+        const completed = progress.completedLessons.find((cl: any) => cl.lessonId.toString() === lesson._id.toString());
+
+        return {
+          lessonId: lesson._id,
+          lessonNumber: lesson.lessonNumber,
+          title: lesson.title,
+          completed: !!completed,
+          quizScore: completed?.quizScore || 0,
+          attempts: completed?.attempts || 0,
+          completedAt: completed?.completedAt || null,
+        };
+      });
+
+      const chapterTestAttempt = progress.chapterTestAttempts.find((attempt: any) => attempt.chapterId.toString() === chapter._id.toString());
+
+      const allLessonsCompleted = lessonsProgress.every((lp: any) => lp.completed);
+      const testPassed = chapterTestAttempt?.passed || false;
+
+      return {
+        chapterId: chapter._id,
+        chapterNumber: chapter.chapterNumber,
+        title: chapter.title,
+        totalLessons: lessonsProgress.length,
+        completedLessons: lessonsProgress.filter((lp: any) => lp.completed).length,
+        allLessonsCompleted,
+        testTaken: !!chapterTestAttempt,
+        testPassed,
+        testScore: chapterTestAttempt?.score || null,
+        testAttemptedAt: chapterTestAttempt?.attemptedAt || null,
+        lessons: lessonsProgress,
+      };
+    });
+
+    // Determine next action
+    let nextAction = null;
+
+    for (const chapter of chaptersProgress) {
+      // Check for incomplete lessons
+      const nextLesson = chapter.lessons.find((l: any) => !l.completed);
+      if (nextLesson) {
+        nextAction = {
+          type: "lesson",
+          chapterNumber: chapter.chapterNumber,
+          lessonNumber: nextLesson.lessonNumber,
+          title: nextLesson.title,
+          message: `Continue with Lesson ${nextLesson.lessonNumber}: ${nextLesson.title}`,
+        };
+        break;
+      }
+
+      // All lessons done, but test not passed
+      if (chapter.allLessonsCompleted && !chapter.testPassed) {
+        nextAction = {
+          type: "chapter-test",
+          chapterNumber: chapter.chapterNumber,
+          title: chapter.title,
+          message: `Take Chapter ${chapter.chapterNumber} Test`,
+        };
+        break;
+      }
+    }
+
+    // All chapters done, check final exam
+    if (!nextAction) {
+      const allChaptersPassed = chaptersProgress.every((c: any) => c.testPassed);
+      const finalExamPassed = progress.finalExamAttempts.some((attempt: any) => attempt.passed);
+
+      if (allChaptersPassed && !finalExamPassed) {
+        nextAction = {
+          type: "final-exam",
+          message: "Take the Final Exam to earn your certificates",
+        };
+      } else if (finalExamPassed) {
+        nextAction = {
+          type: "completed",
+          message: "Congratulations! You've completed the course.",
+        };
+      }
+    }
+
+    // Final exam attempts
+    const finalExamAttempts = progress.finalExamAttempts.map((attempt: any) => ({
+      score: attempt.score,
+      passed: attempt.passed,
+      attemptedAt: attempt.attemptedAt,
+    }));
+
+    res.status(200).json({
+      progress: {
+        currentChapter: progress.currentChapterNumber,
+        currentLesson: progress.currentLessonNumber,
+        courseCompleted: progress.courseCompleted,
+        certificateIssued: progress.certificateIssued,
+        completedAt: progress.completedAt,
+        chapters: chaptersProgress,
+        finalExam: {
+          attempts: finalExamAttempts,
+          passed: progress.finalExamAttempts.some((a: any) => a.passed),
+          bestScore: Math.max(...finalExamAttempts.map((a: any) => a.score), 0),
+        },
+        nextAction,
       },
     });
   } catch (error) {
