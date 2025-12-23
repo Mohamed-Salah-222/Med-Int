@@ -4,6 +4,9 @@ import Course from "../models/Course";
 import Chapter from "../models/Chapter";
 import Lesson from "../models/Lesson";
 import Question from "../models/Question";
+import User from "../models/User";
+import Certificate from "../models/Certificate";
+import UserProgress from "../models/UserProgress";
 
 interface CreateCourseBody {
   title: string;
@@ -275,6 +278,92 @@ export const assignQuestions = async (req: Request<{}, {}, AssignQuestionsBody>,
         assigned: questionIds.length,
       });
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDashboardStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Total users
+    const totalUsers = await User.countDocuments();
+
+    // Users with Student role
+    const studentUsers = await User.countDocuments({ role: "Student" });
+
+    // Users who started the course (have progress)
+    const usersWithProgress = await UserProgress.countDocuments();
+
+    // Users who completed the course
+    const completedUsers = await UserProgress.countDocuments({
+      courseCompleted: true,
+    });
+
+    // Total certificates issued
+    const certificatesIssued = await Certificate.countDocuments();
+
+    // Course completion rate
+    const completionRate = usersWithProgress > 0 ? Math.round((completedUsers / usersWithProgress) * 100) : 0;
+
+    res.status(200).json({
+      stats: {
+        totalUsers,
+        studentUsers,
+        usersWithProgress,
+        completedUsers,
+        certificatesIssued,
+        completionRate: `${completionRate}%`,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllCertificates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const certificates = await Certificate.find().sort({ issuedAt: -1 }).select("certificateNumber userName userEmail courseTitle finalExamScore completionDate issuedAt");
+
+    res.status(200).json({
+      total: certificates.length,
+      certificates,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllUsersProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.query;
+
+    if (!courseId) {
+      res.status(400).json({ message: "Course ID is required" });
+      return;
+    }
+
+    // Get all progress for this course
+    const progressRecords = await UserProgress.find({ courseId }).populate("userId", "name email createdAt").sort({ updatedAt: -1 });
+
+    const usersProgress = progressRecords.map((progress: any) => ({
+      userId: progress.userId._id,
+      userName: progress.userId.name,
+      userEmail: progress.userId.email,
+      userRegisteredAt: progress.userId.createdAt,
+      completedLessons: progress.completedLessons.length,
+      chapterTestsPassed: progress.chapterTestAttempts.filter((attempt: any) => attempt.passed).length,
+      finalExamAttempts: progress.finalExamAttempts.length,
+      finalExamPassed: progress.finalExamAttempts.some((attempt: any) => attempt.passed),
+      courseCompleted: progress.courseCompleted,
+      certificateIssued: progress.certificateIssued,
+      completedAt: progress.completedAt,
+      lastActivity: progress.updatedAt,
+    }));
+
+    res.status(200).json({
+      total: usersProgress.length,
+      users: usersProgress,
+    });
   } catch (error) {
     next(error);
   }
