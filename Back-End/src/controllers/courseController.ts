@@ -7,6 +7,7 @@ import UserProgress from "../models/UserProgress";
 import Certificate from "../models/Certificate";
 import User from "../models/User";
 import { generateCertificateNumber, generateVerificationCode } from "../utils/certificateGenerator";
+import { sendCertificateEmail } from "../utils/emailService";
 
 interface SubmitQuizBody {
   answers: {
@@ -751,9 +752,8 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         res.status(404).json({ message: "User not found" });
         return;
       }
-
-      // Create certificate
-      const certificate = await Certificate.create({
+      // Create Main Medical Interpreter Certificate
+      const mainCertificate = await Certificate.create({
         userId,
         courseId: id,
         userName: user.name,
@@ -766,6 +766,44 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         issuedAt: new Date(),
       });
 
+      // Create HIPAA Certificate
+      const hipaaCertificate = await Certificate.create({
+        userId,
+        courseId: id,
+        userName: user.name,
+        userEmail: user.email,
+        courseTitle: "HIPAA for Medical Interpreters",
+        completionDate: new Date(),
+        certificateNumber: generateCertificateNumber(),
+        verificationCode: generateVerificationCode(),
+        finalExamScore: score,
+        issuedAt: new Date(),
+      });
+
+      try {
+        await sendCertificateEmail(
+          user.email,
+          user.name,
+          {
+            certificateNumber: mainCertificate.certificateNumber,
+            verificationCode: mainCertificate.verificationCode,
+            courseTitle: mainCertificate.courseTitle,
+            completionDate: mainCertificate.completionDate,
+            finalExamScore: score,
+          },
+          {
+            certificateNumber: hipaaCertificate.certificateNumber,
+            verificationCode: hipaaCertificate.verificationCode,
+            courseTitle: hipaaCertificate.courseTitle,
+            completionDate: hipaaCertificate.completionDate,
+            finalExamScore: score,
+          }
+        );
+      } catch (emailError) {
+        console.error("Failed to send certificate email:", emailError);
+        // Don't fail the request if email fails
+      }
+
       await progress.save();
 
       res.status(200).json({
@@ -776,10 +814,17 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         passingScore: course.finalExam.passingScore,
         courseCompleted: progress.courseCompleted,
         certificateIssued: progress.certificateIssued,
-        certificate: {
-          certificateNumber: certificate.certificateNumber,
-          verificationCode: certificate.verificationCode,
-          issuedAt: certificate.issuedAt,
+        certificates: {
+          main: {
+            certificateNumber: mainCertificate.certificateNumber,
+            verificationCode: mainCertificate.verificationCode,
+            issuedAt: mainCertificate.issuedAt,
+          },
+          hipaa: {
+            certificateNumber: hipaaCertificate.certificateNumber,
+            verificationCode: hipaaCertificate.verificationCode,
+            issuedAt: hipaaCertificate.issuedAt,
+          },
         },
         results,
       });

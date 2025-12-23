@@ -56,3 +56,96 @@ export const sendPasswordResetEmail = async (email: string, resetToken: string, 
     throw new Error("Failed to send password reset email");
   }
 };
+
+export const sendCertificateEmail = async (
+  email: string,
+  name: string,
+  mainCertificate: {
+    certificateNumber: string;
+    verificationCode: string;
+    courseTitle: string;
+    completionDate: Date;
+    finalExamScore: number;
+  },
+  hipaaCertificate: {
+    certificateNumber: string;
+    verificationCode: string;
+    courseTitle: string;
+    completionDate: Date;
+    finalExamScore: number;
+  }
+) => {
+  const mailOptions = {
+    from: '"Medical Interpreter Academy" <certificates@medicalinterpreter.com>',
+    to: email,
+    subject: "🎉 Congratulations! Your Certificates Have Been Issued",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #2c3e50;">Congratulations, ${name}! 🎉</h1>
+        
+        <p style="font-size: 16px; line-height: 1.6;">
+          We are thrilled to inform you that you have successfully completed the 
+          <strong>Medical Interpreter Certification Course</strong> and passed your final exam 
+          with a score of <strong>${mainCertificate.finalExamScore}%</strong>!
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6;">
+          You have been issued <strong>TWO certificates</strong>:
+        </p>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h2 style="color: #27ae60; margin-top: 0;">📜 Medical Interpreter Certificate</h2>
+          <p><strong>Certificate Number:</strong> ${mainCertificate.certificateNumber}</p>
+          <p><strong>Verification Code:</strong> ${mainCertificate.verificationCode}</p>
+          <p><strong>Course:</strong> ${mainCertificate.courseTitle}</p>
+          <p><strong>Completion Date:</strong> ${new Date(mainCertificate.completionDate).toLocaleDateString()}</p>
+          <p><strong>Score:</strong> ${mainCertificate.finalExamScore}%</p>
+        </div>
+
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h2 style="color: #27ae60; margin-top: 0;">📜 HIPAA Certificate</h2>
+          <p><strong>Certificate Number:</strong> ${hipaaCertificate.certificateNumber}</p>
+          <p><strong>Verification Code:</strong> ${hipaaCertificate.verificationCode}</p>
+          <p><strong>Course:</strong> ${hipaaCertificate.courseTitle}</p>
+          <p><strong>Completion Date:</strong> ${new Date(hipaaCertificate.completionDate).toLocaleDateString()}</p>
+          <p><strong>Score:</strong> ${hipaaCertificate.finalExamScore}%</p>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6;">
+          These certificates demonstrate your commitment to professional medical interpreting and 
+          your understanding of HIPAA compliance in healthcare settings.
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6;">
+          You can download your certificates from your account dashboard at any time. 
+          Keep your certificate numbers and verification codes safe for future reference.
+        </p>
+
+        <div style="background-color: #e8f4f8; padding: 15px; border-left: 4px solid #3498db; margin: 20px 0;">
+          <p style="margin: 0; font-size: 14px;">
+            <strong>Note:</strong> Employers or clients can verify your certificates using the 
+            certificate number and verification code on our verification portal.
+          </p>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.6;">
+          Congratulations once again on this significant achievement! We wish you success in your 
+          career as a certified medical interpreter.
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.6;">
+          Best regards,<br>
+          <strong>The Medical Interpreter Academy Team</strong>
+        </p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Certificate email sent to ${email}`);
+  } catch (error) {
+    console.error("Error sending certificate email:", error);
+    throw new Error("Failed to send certificate email");
+  }
+};
