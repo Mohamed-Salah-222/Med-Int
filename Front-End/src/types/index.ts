@@ -128,3 +128,13 @@ export interface ExamSubmitResponse {
   };
   results: QuizResult[];
 }
+
+export interface Certificate {
+  certificateNumber: string;
+  verificationCode: string;
+  userName: string;
+  courseTitle: string;
+  completionDate: string;
+  finalExamScore: number;
+  issuedAt: string;
+}
