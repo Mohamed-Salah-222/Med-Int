@@ -32,7 +32,7 @@ export const sendVerificationEmail = async (email: string, code: string, name: s
 };
 
 export const sendPasswordResetEmail = async (email: string, resetToken: string, name: string) => {
-  const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+  const resetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
 
   const mailOptions = {
     from: '"Medical Interpreter" <noreply@medicalinterpreter.com>',

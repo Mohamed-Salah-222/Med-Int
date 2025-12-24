@@ -1,0 +1,24 @@
+@import "tailwindcss";
+.lesson-content h2 {
+  @apply text-3xl font-bold text-gray-900 mb-4 mt-8;
+}
+
+.lesson-content h3 {
+  @apply text-2xl font-semibold text-gray-800 mb-3 mt-6;
+}
+
+.lesson-content p {
+  @apply text-lg text-gray-700 leading-relaxed mb-4;
+}
+
+.lesson-content ul {
+  @apply list-disc ml-6 mb-4 space-y-2;
+}
+
+.lesson-content li {
+  @apply text-gray-700;
+}
+
+.lesson-content strong {
+  @apply font-semibold text-gray-900;
+}
