@@ -96,3 +96,35 @@ export interface DetailedProgress {
   };
   nextAction: NextAction | null;
 }
+
+export interface TestSubmitResponse {
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  passed: boolean;
+  passingScore: number;
+  results: QuizResult[];
+}
+
+export interface ExamSubmitResponse {
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  passed: boolean;
+  passingScore: number;
+  courseCompleted: boolean;
+  certificateIssued: boolean;
+  certificates?: {
+    main: {
+      certificateNumber: string;
+      verificationCode: string;
+      issuedAt: string;
+    };
+    hipaa: {
+      certificateNumber: string;
+      verificationCode: string;
+      issuedAt: string;
+    };
+  };
+  results: QuizResult[];
+}

@@ -10,6 +10,8 @@ import CourseDetail from "./pages/CourseDetail";
 import Dashboard from "./pages/Dashboard";
 import LessonView from "./pages/LessonView";
 import QuizView from "./pages/QuizView";
+import ChapterTestView from "./pages/ChapterTestView";
+import FinalExamView from "./pages/FinalExamView";
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/lesson/:id" element={<LessonView />} />
           <Route path="/lesson/:id/quiz" element={<QuizView />} />
+          <Route path="/chapter/:id/test" element={<ChapterTestView />} />
+          <Route path="/course/:id/exam" element={<FinalExamView />} />
         </Routes>
       </Router>
     </AuthProvider>

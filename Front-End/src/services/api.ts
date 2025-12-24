@@ -1,5 +1,5 @@
 import axios from "axios";
-import { LoginResponse, Lesson, Question, QuizAnswer, QuizSubmitResponse, DetailedProgress } from "../types";
+import { LoginResponse, Lesson, Question, QuizAnswer, QuizSubmitResponse, DetailedProgress, TestSubmitResponse, ExamSubmitResponse } from "../types";
 
 const API_URL = "http://localhost:5000/api";
 
@@ -39,6 +39,14 @@ export const courseAPI = {
   getCourse: (id: string) => api.get<{ course: { id: string; title: string; description: string; totalChapters: number; chapters: any[] } }>(`/courses/${id}`),
 
   getDetailedProgress: (courseId: string) => api.get<{ progress: DetailedProgress }>(`/courses/${courseId}/detailed-progress`),
+
+  getChapterTest: (chapterId: string) => api.get<{ test: { questions: Question[]; totalQuestions: number; passingScore: number; timeLimit: number } }>(`/courses/chapters/${chapterId}/test`),
+
+  submitChapterTest: (chapterId: string, answers: QuizAnswer[]) => api.post<TestSubmitResponse>(`/courses/chapters/${chapterId}/submit-test`, { answers }),
+
+  getFinalExam: (courseId: string) => api.get<{ exam: { questions: Question[]; totalQuestions: number; passingScore: number; timeLimit: number } }>(`/courses/${courseId}/exam`),
+
+  submitFinalExam: (courseId: string, answers: QuizAnswer[]) => api.post<ExamSubmitResponse>(`/courses/${courseId}/submit-exam`, { answers }),
 };
 
 export default api;
