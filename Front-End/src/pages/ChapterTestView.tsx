@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { courseAPI } from "../services/api";
 import { Question, QuizAnswer } from "../types";
+import { AlertCircle, CheckCircle, XCircle, Clock, Target, ArrowLeft, Trophy, BookOpen } from "lucide-react";
+import Layout from "../components/Layout";
 
 interface TestSubmitResponse {
   score: number;
@@ -20,7 +22,7 @@ interface TestSubmitResponse {
 }
 
 function ChapterTestView() {
-  const { id } = useParams(); // chapter ID
+  const { id } = useParams();
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [passingScore, setPassingScore] = useState(70);
@@ -89,135 +91,192 @@ function ChapterTestView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading chapter test...</div>
-      </div>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="text-xl text-[#6B6B6B]">Loading chapter test...</div>
+        </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">⏰</div>
-          <h2 className="text-2xl font-bold text-red-600 mb-4">{error}</h2>
-          <button onClick={() => navigate("/dashboard")} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-            Back to Dashboard
-          </button>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="text-center">
+            <Clock className="w-24 h-24 text-[#7A9D96] mx-auto mb-6" strokeWidth={1.5} />
+            <h2 className="text-3xl font-bold text-[#2C2C2C] mb-4">{error}</h2>
+            <p className="text-[#6B6B6B] mb-8 max-w-md mx-auto">Please complete all lessons in this chapter before taking the test.</p>
+            <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all shadow-md">
+              Back to Dashboard
+            </button>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (submitted && results) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <nav className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-bold text-gray-900">Chapter Test Results</h1>
-          </div>
-        </nav>
+      <Layout>
+        <div className="min-h-screen bg-[#FAFAF8] py-12">
+          <div className="max-w-4xl mx-auto px-6">
+            {/* Results Summary */}
+            <div className={`rounded-2xl shadow-xl p-12 mb-8 ${results.passed ? "bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500" : "bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-500"}`}>
+              <div className="text-center">
+                {results.passed ? <Trophy className="w-20 h-20 text-green-600 mx-auto mb-6" strokeWidth={1.5} /> : <BookOpen className="w-20 h-20 text-red-600 mx-auto mb-6" strokeWidth={1.5} />}
+                <h1 className="text-4xl font-bold mb-4 text-[#2C2C2C]" style={{ fontFamily: "Playfair Display, serif" }}>
+                  {results.passed ? "Chapter Test Passed!" : "Keep Studying!"}
+                </h1>
+                <div className="text-6xl font-bold mb-4 text-[#2C2C2C]">{results.score}%</div>
+                <p className="text-xl text-[#6B6B6B] mb-2">
+                  You answered {results.correctCount} out of {results.totalQuestions} questions correctly
+                </p>
+                {results.passed ? <p className="text-lg text-green-700 font-semibold">Great work! You can now proceed to the next chapter.</p> : <p className="text-lg text-red-700 font-semibold">You need {passingScore}% to pass. Review the material and try again after 3 hours.</p>}
+              </div>
+            </div>
 
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          {/* Results Summary */}
-          <div className={`rounded-lg shadow-lg p-8 mb-8 ${results.passed ? "bg-green-50 border-2 border-green-500" : "bg-red-50 border-2 border-red-500"}`}>
-            <div className="text-center">
-              <div className="text-6xl mb-4">{results.passed ? "🎉" : "📚"}</div>
-              <h2 className="text-3xl font-bold mb-2">{results.passed ? "Chapter Test Passed!" : "Not Passed Yet"}</h2>
-              <p className="text-xl mb-4">
-                You scored {results.score}% ({results.correctCount} out of {results.totalQuestions})
-              </p>
-              <p className="text-lg">{results.passed ? "Great work! You can now proceed to the next chapter." : `You need ${passingScore}% to pass. You can retry after 3 hours.`}</p>
+            {/* Question Results */}
+            <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
+              <h2 className="text-2xl font-bold text-[#2C2C2C] mb-6 flex items-center">
+                <Target className="w-6 h-6 text-[#7A9D96] mr-3" />
+                Answer Review
+              </h2>
+              <div className="space-y-4">
+                {results.results.map((result, index) => (
+                  <div key={result.questionId} className={`p-6 rounded-xl border-2 ${result.isCorrect ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                    <div className="flex items-start mb-4">
+                      {result.isCorrect ? <CheckCircle className="w-6 h-6 text-green-600 mr-3 flex-shrink-0 mt-1" /> : <XCircle className="w-6 h-6 text-red-600 mr-3 flex-shrink-0 mt-1" />}
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          <span className="font-bold text-[#2C2C2C] mr-2">Question {index + 1}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full font-semibold ${result.isCorrect ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"}`}>{result.isCorrect ? "Correct" : "Incorrect"}</span>
+                        </div>
+                        <p className="text-[#2C2C2C] mb-3">{result.questionText}</p>
+                      </div>
+                    </div>
+
+                    <div className="ml-9 space-y-2">
+                      <div className={`font-medium ${result.isCorrect ? "text-green-700" : "text-red-700"}`}>Your answer: {result.selectedAnswer}</div>
+                      {!result.isCorrect && <div className="font-medium text-green-700">Correct answer: {result.correctAnswer}</div>}
+                      {result.explanation && (
+                        <div className="bg-white/50 p-3 rounded-lg mt-3 border border-[#E8E8E6]">
+                          <div className="flex items-start">
+                            <AlertCircle className="w-5 h-5 text-[#7A9D96] mr-2 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-[#6B6B6B]">{result.explanation}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <div className="flex justify-center">
+              <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-4 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all shadow-md flex items-center space-x-2">
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to Dashboard</span>
+              </button>
             </div>
           </div>
+        </div>
+      </Layout>
+    );
+  }
 
-          {/* Question Results */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold mb-6">Answer Review</h3>
-            <div className="space-y-6">
-              {results.results.map((result, index) => (
-                <div key={result.questionId} className={`p-4 rounded-lg ${result.isCorrect ? "bg-green-50" : "bg-red-50"}`}>
-                  <div className="flex items-start mb-2">
-                    <span className="font-bold mr-2">Q{index + 1}.</span>
-                    <span>{result.questionText}</span>
-                  </div>
+  const answeredCount = Object.keys(answers).length;
+  const progressPercentage = (answeredCount / questions.length) * 100;
 
-                  <div className="ml-6 space-y-2">
-                    <div className={`font-medium ${result.isCorrect ? "text-green-700" : "text-red-700"}`}>Your answer: {result.selectedAnswer}</div>
-                    {!result.isCorrect && <div className="font-medium text-green-700">Correct answer: {result.correctAnswer}</div>}
-                    {result.explanation && <div className="text-gray-600 text-sm mt-2">💡 {result.explanation}</div>}
-                  </div>
+  return (
+    <Layout>
+      <div className="min-h-screen bg-[#FAFAF8] py-12">
+        <div className="max-w-4xl mx-auto px-6">
+          {/* Header */}
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+                  Chapter Test
+                </h1>
+                <p className="text-[#6B6B6B]">Answer all questions to complete this chapter</p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-[#7A9D96]">
+                  {answeredCount}/{questions.length}
                 </div>
-              ))}
+                <div className="text-sm text-[#6B6B6B]">Questions Answered</div>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-[#E8E8E6] rounded-full h-2">
+              <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all duration-300" style={{ width: `${progressPercentage}%` }}></div>
             </div>
           </div>
 
-          {/* Action Button */}
-          <div className="flex justify-center">
-            <button onClick={() => navigate("/dashboard")} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-              Back to Dashboard
+          {/* Test Instructions */}
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg p-6 mb-8">
+            <div className="flex items-start">
+              <AlertCircle className="w-6 h-6 text-yellow-600 mr-3 flex-shrink-0 mt-1" />
+              <div>
+                <p className="font-bold text-[#2C2C2C] mb-3">Chapter Test Instructions:</p>
+                <ul className="space-y-2 text-[#6B6B6B]">
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-yellow-600 mr-2" />
+                    Answer all {questions.length} questions
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="w-4 h-4 text-yellow-600 mr-2" />
+                    You need {passingScore}% to pass
+                  </li>
+                  <li className="flex items-center">
+                    <Clock className="w-4 h-4 text-yellow-600 mr-2" />
+                    Time limit: {timeLimit} minutes (not enforced yet)
+                  </li>
+                  <li className="flex items-center">
+                    <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
+                    You can only retry after 3 hours cooldown
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Questions */}
+          <div className="space-y-6">
+            {questions.map((question, index) => (
+              <div key={question._id} className="bg-white rounded-xl shadow-md p-6 border border-[#E8E8E6]">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-bold text-xl text-[#2C2C2C]">Question {index + 1}</span>
+                  {question.difficulty && <span className={`text-xs px-3 py-1 rounded-full font-semibold ${question.difficulty === "easy" ? "bg-green-100 text-green-800" : question.difficulty === "medium" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}>{question.difficulty.toUpperCase()}</span>}
+                </div>
+
+                <p className="text-lg text-[#2C2C2C] mb-6">{question.questionText}</p>
+
+                <div className="space-y-3">
+                  {question.options.map((option, optIndex) => (
+                    <label key={optIndex} className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${answers[question._id] === option ? "border-[#7A9D96] bg-[#7A9D96]/5 shadow-sm" : "border-[#E8E8E6] hover:border-[#7A9D96]/50 hover:bg-[#FAFAF8]"}`}>
+                      <input type="radio" name={question._id} value={option} checked={answers[question._id] === option} onChange={(e) => handleAnswerChange(question._id, e.target.value)} className="w-5 h-5 text-[#7A9D96] mr-4 cursor-pointer" />
+                      <span className="text-[#2C2C2C] font-medium">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Submit Button */}
+          <div className="mt-8 flex justify-center">
+            <button onClick={handleSubmit} disabled={answeredCount !== questions.length} className="bg-[#7A9D96] text-white px-12 py-4 rounded-lg font-bold text-lg hover:bg-[#6A8D86] disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none flex items-center space-x-2">
+              <Target className="w-6 h-6" />
+              <span>Submit Chapter Test</span>
             </button>
           </div>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Chapter Test</h1>
-          <div className="text-gray-600">
-            {Object.keys(answers).length} / {questions.length} answered
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Test Instructions */}
-        <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4 mb-8">
-          <p className="font-semibold">Chapter Test Instructions:</p>
-          <ul className="list-disc ml-5 mt-2 space-y-1">
-            <li>Answer all {questions.length} questions</li>
-            <li>You need {passingScore}% to pass</li>
-            <li>Time limit: {timeLimit} minutes (not enforced yet)</li>
-            <li>⏰ You can only retry after 3 hours cooldown</li>
-          </ul>
-        </div>
-
-        {/* Questions */}
-        <div className="space-y-6">
-          {questions.map((question, index) => (
-            <div key={question._id} className="bg-white rounded-lg shadow-lg p-6">
-              <div className="mb-4">
-                <span className="font-bold text-lg">Question {index + 1}</span>
-                {question.difficulty && <span className={`ml-3 text-sm px-2 py-1 rounded ${question.difficulty === "easy" ? "bg-green-100 text-green-800" : question.difficulty === "medium" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}>{question.difficulty}</span>}
-              </div>
-
-              <p className="text-lg mb-4">{question.questionText}</p>
-
-              <div className="space-y-3">
-                {question.options.map((option, optIndex) => (
-                  <label key={optIndex} className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition ${answers[question._id] === option ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
-                    <input type="radio" name={question._id} value={option} checked={answers[question._id] === option} onChange={(e) => handleAnswerChange(question._id, e.target.value)} className="mr-3" />
-                    <span>{option}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Submit Button */}
-        <div className="mt-8 flex justify-center">
-          <button onClick={handleSubmit} disabled={Object.keys(answers).length !== questions.length} className="bg-blue-600 text-white px-12 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
-            Submit Chapter Test
-          </button>
-        </div>
-      </div>
-    </div>
+    </Layout>
   );
 }
 
