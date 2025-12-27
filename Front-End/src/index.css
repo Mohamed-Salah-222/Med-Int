@@ -1,4 +1,19 @@
 @import "tailwindcss";
+
+/* Custom Theme */
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-serif: "Playfair Display", serif;
+
+  --color-primary: #2c2c2c;
+  --color-secondary: #7a9d96;
+  --color-background: #fafaf8;
+  --color-text-dark: #1a1a1a;
+  --color-text-light: #6b6b6b;
+  --color-border: #e8e8e6;
+}
+
+/* Lesson content styling */
 .lesson-content h2 {
   @apply text-3xl font-bold text-gray-900 mb-4 mt-8;
 }
@@ -21,4 +36,38 @@
 
 .lesson-content strong {
   @apply font-semibold text-gray-900;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:py-0 {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .print\:px-0 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
 }

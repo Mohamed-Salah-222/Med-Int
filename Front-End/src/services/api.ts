@@ -1,5 +1,5 @@
 import axios from "axios";
-import { LoginResponse, Lesson, Question, QuizAnswer, QuizSubmitResponse, DetailedProgress, TestSubmitResponse, ExamSubmitResponse, Certificate } from "../types";
+import { LoginResponse, Lesson, Question, QuizAnswer, QuizSubmitResponse, DetailedProgress, TestSubmitResponse, ExamSubmitResponse, Certificate, User } from "../types";
 
 const API_URL = "http://localhost:5000/api";
 
@@ -27,6 +27,8 @@ export const authAPI = {
   forgotPassword: (email: string) => api.post("/auth/forgot-password", { email }),
 
   resetPassword: (token: string, password: string) => api.post("/auth/reset-password", { token, newPassword: password }),
+
+  getCurrentUser: () => api.get<{ user: User }>("/auth/me"),
 };
 
 export const courseAPI = {
@@ -49,6 +51,8 @@ export const courseAPI = {
   submitFinalExam: (courseId: string, answers: QuizAnswer[]) => api.post<ExamSubmitResponse>(`/courses/${courseId}/submit-exam`, { answers }),
 
   getCertificate: (courseId: string) => api.get<{ certificate: Certificate }>(`/courses/${courseId}/certificate`),
+
+  getCertificates: (courseId: string) => api.get<{ certificates: { main: Certificate | null; hipaa: Certificate | null } }>(`/courses/${courseId}/certificates`),
 };
 
 export default api;

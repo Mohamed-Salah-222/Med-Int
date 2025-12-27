@@ -10,14 +10,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/playfair-display": "^5.2.8",
     "@tailwindcss/vite": "^4.1.18",
     "axios": "^1.13.2",
+    "jspdf": "^3.0.4",
+    "jspdf-html2canvas": "^1.6.0",
+    "lucide": "^0.562.0",
+    "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.11.0"
+    "react-router-dom": "^7.11.0",
+    "react-to-print": "^3.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/html2canvas": "^0.5.35",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

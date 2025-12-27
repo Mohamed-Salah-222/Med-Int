@@ -17,13 +17,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
+  // Fetch user on mount if token exists
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (token) {
+        try {
+          const response = await authAPI.getCurrentUser();
+          setUser(response.data.user);
+        } catch (error) {
+          console.error("Failed to fetch user:", error);
+          // Token is invalid, clear it
+          setToken(null);
+          localStorage.removeItem("token");
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchUser();
+  }, [token]);
+
+  // Sync token to localStorage
   useEffect(() => {
     if (token) {
       localStorage.setItem("token", token);
     } else {
       localStorage.removeItem("token");
     }
-    setLoading(false);
   }, [token]);
 
   const login = async (email: string, password: string) => {
@@ -35,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setToken(null);
     setUser(null);
+    localStorage.removeItem("token");
   };
 
   return <AuthContext.Provider value={{ user, token, login, logout, loading }}>{children}</AuthContext.Provider>;

@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { courseAPI } from "../services/api";
+import { Shield, Download, Printer, CheckCircle } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
+import Layout from "../components/Layout";
 
 interface Certificate {
   certificateNumber: string;
@@ -12,187 +15,255 @@ interface Certificate {
   issuedAt: string;
 }
 
+interface CertificatesResponse {
+  main: Certificate | null;
+  hipaa: Certificate | null;
+}
+
 function CertificateView() {
-  const { id } = useParams(); // course ID
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [certificate, setCertificate] = useState<Certificate | null>(null);
+  const [certificates, setCertificates] = useState<CertificatesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const certificatesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchCertificate = async () => {
+    const fetchCertificates = async () => {
       try {
-        const response = await courseAPI.getCertificate(id!);
-        setCertificate(response.data.certificate);
+        const response = await courseAPI.getCertificates(id!);
+        setCertificates(response.data.certificates);
       } catch (error: any) {
-        console.error("Error fetching certificate:", error);
+        console.error("Error fetching certificates:", error);
         if (error.response?.status === 404) {
-          setError("Certificate not found. Complete the course to earn your certificate.");
+          setError("Certificates not found. Complete the course to earn your certificates.");
         } else {
-          setError("Failed to load certificate");
+          setError("Failed to load certificates");
         }
       } finally {
         setLoading(false);
       }
     };
-    fetchCertificate();
+    fetchCertificates();
   }, [id]);
+
+  const handlePrint = useReactToPrint({
+    contentRef: certificatesRef,
+  });
+  const handleDownloadPDF = useReactToPrint({
+    contentRef: certificatesRef,
+    documentTitle: `Medical-Interpreter-Certificates-${certificates?.main?.userName.replace(/\s+/g, "-") || "User"}-${new Date().toISOString().split("T")[0]}`,
+  });
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading certificate...</div>
-      </div>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-xl text-[#6B6B6B]">Loading certificates...</div>
+        </div>
+      </Layout>
     );
   }
 
-  if (error || !certificate) {
+  if (error || !certificates || (!certificates.main && !certificates.hipaa)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📜</div>
-          <h2 className="text-2xl font-bold text-gray-600 mb-4">{error || "No certificate found"}</h2>
-          <button onClick={() => navigate("/dashboard")} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-            Back to Dashboard
-          </button>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-6xl mb-4">📜</div>
+            <h2 className="text-2xl font-bold text-[#2C2C2C] mb-4">{error || "No certificates found"}</h2>
+            <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all">
+              Back to Dashboard
+            </button>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">My Certificates</h1>
-          <button onClick={() => navigate("/dashboard")} className="text-gray-600 hover:text-gray-900">
-            Back to Dashboard
-          </button>
-        </div>
-      </nav>
+    <Layout>
+      <div className="min-h-screen bg-[#FAFAF8] py-12 print:py-0">
+        <div className="max-w-7xl mx-auto px-6 print:px-0">
+          {/* Success Banner - Hidden on print */}
+          <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white rounded-2xl shadow-xl p-12 mb-12 text-center print:hidden">
+            <div className="text-7xl mb-6">🎓</div>
+            <h1 className="text-5xl font-bold mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+              Congratulations!
+            </h1>
+            <p className="text-2xl text-white/90">You have successfully completed the Medical Interpretation Course</p>
+          </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Success Banner */}
-        <div className="bg-gradient-to-r from-green-600 to-green-800 text-white rounded-lg shadow-lg p-8 mb-8 text-center">
-          <div className="text-6xl mb-4">🎓</div>
-          <h1 className="text-4xl font-bold mb-2">Congratulations!</h1>
-          <p className="text-xl">You have successfully completed the Medical Interpretation Course</p>
-        </div>
+          {/* Action Buttons - Hidden on print */}
+          <div className="flex justify-center space-x-4 mb-12 print:hidden">
+            <button onClick={handlePrint} className="bg-white border-2 border-[#7A9D96] text-[#7A9D96] px-8 py-4 rounded-lg font-semibold hover:bg-[#7A9D96] hover:text-white transition-all shadow-md flex items-center space-x-2">
+              <Printer className="w-5 h-5" />
+              <span>Print Certificates</span>
+            </button>
+            <button onClick={handleDownloadPDF} className="bg-[#7A9D96] text-white px-8 py-4 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all shadow-md flex items-center space-x-2">
+              <Download className="w-5 h-5" />
+              <span>Save as PDF</span>
+            </button>
+          </div>
 
-        {/* Certificates Display */}
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Main Certificate */}
-          <div className="bg-white rounded-lg shadow-xl p-8 border-4 border-blue-500">
-            <div className="text-center mb-6">
-              <div className="text-5xl mb-4">📜</div>
-              <h2 className="text-2xl font-bold text-blue-600 mb-2">Medical Interpreter Certificate</h2>
-              <div className="h-1 w-20 bg-blue-600 mx-auto"></div>
-            </div>
+          {/* Certificates Grid */}
+          <div ref={certificatesRef} className="grid md:grid-cols-2 gap-8 mb-12">
+            {/* Main Certificate */}
+            {certificates.main && (
+              <div className="bg-white rounded-2xl shadow-2xl p-10 border-4 border-[#7A9D96] print:shadow-none print:break-inside-avoid">
+                <div className="text-center mb-8">
+                  <Shield className="w-16 h-16 text-[#7A9D96] mx-auto mb-4" strokeWidth={1.5} />
+                  <h2 className="text-3xl font-bold text-[#7A9D96] mb-3" style={{ fontFamily: "Playfair Display, serif" }}>
+                    Medical Interpreter Certificate
+                  </h2>
+                  <div className="h-1 w-24 bg-[#7A9D96] mx-auto"></div>
+                </div>
 
-            <div className="space-y-4">
-              <div className="text-center py-6 border-t border-b border-gray-200">
-                <p className="text-gray-600 mb-2">This certifies that</p>
-                <p className="text-3xl font-bold text-gray-900">{certificate.userName}</p>
-                <p className="text-gray-600 mt-2">has successfully completed</p>
-                <p className="text-xl font-semibold text-gray-800 mt-1">{certificate.courseTitle}</p>
+                <div className="space-y-6">
+                  <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
+                    <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
+                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+                      {certificates.main.userName}
+                    </p>
+                    <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
+                    <p className="text-2xl font-semibold text-[#2C2C2C]">{certificates.main.courseTitle}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Certificate Number</p>
+                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.main.certificateNumber}</p>
+                    </div>
+                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Verification Code</p>
+                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.main.verificationCode}</p>
+                    </div>
+                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Completion Date</p>
+                      <p className="text-[#2C2C2C] font-semibold">
+                        {new Date(certificates.main.completionDate).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Final Exam Score</p>
+                      <p className="text-[#2C2C2C] font-semibold">{certificates.main.finalExamScore}%</p>
+                    </div>
+                  </div>
+
+                  <div className="text-center pt-6">
+                    <div className="inline-flex items-center space-x-2 bg-[#7A9D96]/10 px-6 py-3 rounded-full">
+                      <CheckCircle className="w-5 h-5 text-[#7A9D96]" />
+                      <span className="text-[#7A9D96] font-semibold">Verified Certificate</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600 font-medium">Certificate Number:</p>
-                  <p className="font-mono text-gray-900">{certificate.certificateNumber}</p>
+            {/* HIPAA Certificate */}
+            {certificates.hipaa && (
+              <div className="bg-white rounded-2xl shadow-2xl p-10 border-4 border-[#2C2C2C] print:shadow-none print:break-inside-avoid">
+                <div className="text-center mb-8">
+                  <Shield className="w-16 h-16 text-[#2C2C2C] mx-auto mb-4" strokeWidth={1.5} />
+                  <h2 className="text-3xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Playfair Display, serif" }}>
+                    HIPAA Compliance Certificate
+                  </h2>
+                  <div className="h-1 w-24 bg-[#2C2C2C] mx-auto"></div>
                 </div>
-                <div>
-                  <p className="text-gray-600 font-medium">Verification Code:</p>
-                  <p className="font-mono text-gray-900">{certificate.verificationCode}</p>
+
+                <div className="space-y-6">
+                  <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
+                    <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
+                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+                      {certificates.hipaa.userName}
+                    </p>
+                    <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
+                    <p className="text-2xl font-semibold text-[#2C2C2C]">{certificates.hipaa.courseTitle}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Certificate Number</p>
+                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.hipaa.certificateNumber}</p>
+                    </div>
+                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Verification Code</p>
+                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.hipaa.verificationCode}</p>
+                    </div>
+                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Issued Date</p>
+                      <p className="text-[#2C2C2C] font-semibold">
+                        {new Date(certificates.hipaa.issuedAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                      <p className="text-[#6B6B6B] font-medium mb-1">Status</p>
+                      <p className="text-green-600 font-semibold flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Valid
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-center pt-6">
+                    <div className="inline-flex items-center space-x-2 bg-[#2C2C2C]/10 px-6 py-3 rounded-full">
+                      <CheckCircle className="w-5 h-5 text-[#2C2C2C]" />
+                      <span className="text-[#2C2C2C] font-semibold">Verified Certificate</span>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Certificate Information - Hidden on print */}
+          <div className="bg-white rounded-2xl shadow-lg p-8 print:hidden">
+            <h3 className="text-2xl font-bold text-[#2C2C2C] mb-6 flex items-center">
+              <Shield className="w-6 h-6 text-[#7A9D96] mr-3" />
+              About Your Certificates
+            </h3>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="flex items-start space-x-4">
+                <CheckCircle className="w-6 h-6 text-[#7A9D96] flex-shrink-0 mt-1" />
                 <div>
-                  <p className="text-gray-600 font-medium">Completion Date:</p>
-                  <p className="text-gray-900">{new Date(certificate.completionDate).toLocaleDateString()}</p>
+                  <h4 className="font-semibold text-[#2C2C2C] mb-1">Email Confirmation</h4>
+                  <p className="text-[#6B6B6B]">Both certificates have been sent to your registered email address</p>
                 </div>
+              </div>
+              <div className="flex items-start space-x-4">
+                <CheckCircle className="w-6 h-6 text-[#7A9D96] flex-shrink-0 mt-1" />
                 <div>
-                  <p className="text-gray-600 font-medium">Final Exam Score:</p>
-                  <p className="text-gray-900">{certificate.finalExamScore}%</p>
+                  <h4 className="font-semibold text-[#2C2C2C] mb-1">Verification</h4>
+                  <p className="text-[#6B6B6B]">Employers can verify your certificates using the certificate number and verification code</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-4">
+                <CheckCircle className="w-6 h-6 text-[#7A9D96] flex-shrink-0 mt-1" />
+                <div>
+                  <h4 className="font-semibold text-[#2C2C2C] mb-1">Secure Storage</h4>
+                  <p className="text-[#6B6B6B]">Save your certificate numbers and codes in a secure location for future reference</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-4">
+                <CheckCircle className="w-6 h-6 text-[#7A9D96] flex-shrink-0 mt-1" />
+                <div>
+                  <h4 className="font-semibold text-[#2C2C2C] mb-1">Lifetime Access</h4>
+                  <p className="text-[#6B6B6B]">Access your certificates anytime from your dashboard</p>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* HIPAA Certificate */}
-          <div className="bg-white rounded-lg shadow-xl p-8 border-4 border-green-500">
-            <div className="text-center mb-6">
-              <div className="text-5xl mb-4">🔒</div>
-              <h2 className="text-2xl font-bold text-green-600 mb-2">HIPAA Compliance Certificate</h2>
-              <div className="h-1 w-20 bg-green-600 mx-auto"></div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="text-center py-6 border-t border-b border-gray-200">
-                <p className="text-gray-600 mb-2">This certifies that</p>
-                <p className="text-3xl font-bold text-gray-900">{certificate.userName}</p>
-                <p className="text-gray-600 mt-2">has successfully completed</p>
-                <p className="text-xl font-semibold text-gray-800 mt-1">HIPAA for Medical Interpreters</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600 font-medium">Certificate Number:</p>
-                  <p className="font-mono text-gray-900">{certificate.certificateNumber}-H</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium">Verification Code:</p>
-                  <p className="font-mono text-gray-900">{certificate.verificationCode}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium">Issued Date:</p>
-                  <p className="text-gray-900">{new Date(certificate.issuedAt).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 font-medium">Status:</p>
-                  <p className="text-green-600 font-semibold">✓ Valid</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-8 bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-bold mb-3">About Your Certificates</h3>
-          <ul className="space-y-2 text-gray-700">
-            <li className="flex items-start">
-              <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>These certificates have been sent to your email</span>
-            </li>
-            <li className="flex items-start">
-              <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Save your certificate numbers and verification codes for future reference</span>
-            </li>
-            <li className="flex items-start">
-              <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Employers can verify your certificates using the certificate number and verification code</span>
-            </li>
-          </ul>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mt-8 flex justify-center space-x-4">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-            Print Certificates
-          </button>
-          <button onClick={() => navigate("/dashboard")} className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700">
-            Back to Dashboard
-          </button>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
 
