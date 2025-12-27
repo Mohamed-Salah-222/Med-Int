@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { courseAPI } from "../services/api";
 import { Lesson } from "../types";
+import { ArrowLeft, BookOpen, ArrowRight } from "lucide-react";
+import Layout from "../components/Layout";
 
 function LessonView() {
   const { id } = useParams();
@@ -25,58 +27,65 @@ function LessonView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading lesson...</div>
-      </div>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="text-xl text-[#6B6B6B]">Loading lesson...</div>
+        </div>
+      </Layout>
     );
   }
 
   if (!lesson) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl text-red-600">Lesson not found</div>
-      </div>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="text-xl text-red-600">Lesson not found</div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <button onClick={() => navigate("/dashboard")} className="text-blue-600 hover:text-blue-800 flex items-center">
-            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Dashboard
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">Lesson {lesson.lessonNumber}</h1>
+    <Layout>
+      <div className="min-h-screen bg-[#FAFAF8]">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-12">
+          <div className="max-w-4xl mx-auto px-6">
+            <button onClick={() => navigate("/dashboard")} className="flex items-center text-white/90 hover:text-white mb-6 transition-colors">
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back to Dashboard
+            </button>
+            <div className="flex items-center mb-4">
+              <BookOpen className="w-8 h-8 mr-3" strokeWidth={1.5} />
+              <span className="text-lg font-semibold">Lesson {lesson.lessonNumber}</span>
+            </div>
+            <h1 className="text-5xl font-bold leading-tight" style={{ fontFamily: "Playfair Display, serif" }}>
+              {lesson.title}
+            </h1>
+          </div>
         </div>
-      </nav>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Lesson Header */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <div className="mb-6">
-            <span className="text-sm text-gray-500 font-medium">Lesson {lesson.lessonNumber}</span>
-            <h1 className="text-4xl font-bold text-gray-900 mt-1">{lesson.title}</h1>
+        {/* Content Section */}
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          {/* Lesson Content Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-12 mb-8 border border-[#E8E8E6]">
+            <div className="lesson-content prose prose-lg max-w-none" dangerouslySetInnerHTML={{ __html: lesson.content }} />
           </div>
 
-          {/* Lesson Content */}
-          <div className="lesson-content" dangerouslySetInnerHTML={{ __html: lesson.content }} />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-between">
-          <button onClick={() => navigate("/dashboard")} className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300">
-            Return to Dashboard
-          </button>
-          <button onClick={() => navigate(`/lesson/${id}/quiz`)} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition">
-            Take Quiz →
-          </button>
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center">
+            <button onClick={() => navigate("/dashboard")} className="bg-white border-2 border-[#E8E8E6] text-[#2C2C2C] px-6 py-3 rounded-lg font-semibold hover:border-[#7A9D96] hover:text-[#7A9D96] transition-all flex items-center space-x-2">
+              <ArrowLeft className="w-5 h-5" />
+              <span>Dashboard</span>
+            </button>
+            <button onClick={() => navigate(`/lesson/${id}/quiz`)} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all flex items-center space-x-2">
+              <span>Take Quiz</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
 
