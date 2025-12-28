@@ -45,6 +45,32 @@ interface AssignQuestionsBody {
   questionIds: string[];
 }
 
+interface UpdateCourseBody {
+  title?: string;
+  description?: string;
+  totalChapters?: number;
+  isPublished?: boolean;
+  finalExam?: {
+    questions?: string[];
+    passingScore?: number;
+    cooldownHours?: number;
+    timeLimit?: number;
+  };
+}
+
+interface UpdateChapterBody {
+  title?: string;
+  description?: string;
+  chapterNumber?: number;
+  isPublished?: boolean;
+  chapterTest?: {
+    questions?: string[];
+    passingScore?: number;
+    cooldownHours?: number;
+    timeLimit?: number;
+  };
+}
+
 export const createCourse = async (req: Request<{}, {}, CreateCourseBody>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -363,6 +389,263 @@ export const getAllUsersProgress = async (req: Request, res: Response, next: Nex
     res.status(200).json({
       total: usersProgress.length,
       users: usersProgress,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllCourses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const courses = await Course.find().populate("chapters", "title chapterNumber").sort({ createdAt: -1 });
+
+    res.status(200).json({
+      courses: courses.map((course) => ({
+        id: course._id,
+        title: course.title,
+        description: course.description,
+        totalChapters: course.totalChapters,
+        chaptersCount: course.chapters.length,
+        isPublished: course.isPublished,
+        finalExamQuestionsCount: course.finalExam.questions.length,
+        createdAt: course.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET single course
+export const getCourseById = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const course = await Course.findById(id).populate("chapters", "title chapterNumber description");
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    res.status(200).json({
+      course: {
+        id: course._id,
+        title: course.title,
+        description: course.description,
+        totalChapters: course.totalChapters,
+        chapters: course.chapters,
+        finalExam: course.finalExam,
+        isPublished: course.isPublished,
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE course
+export const updateCourse = async (req: Request<{ id: string }, {}, UpdateCourseBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { title, description, totalChapters, isPublished, finalExam } = req.body;
+
+    const course = await Course.findById(id);
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Update fields if provided
+    if (title !== undefined) course.title = title;
+    if (description !== undefined) course.description = description;
+    if (totalChapters !== undefined) course.totalChapters = totalChapters;
+    if (isPublished !== undefined) course.isPublished = isPublished;
+    if (finalExam !== undefined) {
+      if (finalExam.questions !== undefined) course.finalExam.questions = finalExam.questions as any;
+      if (finalExam.passingScore !== undefined) course.finalExam.passingScore = finalExam.passingScore;
+      if (finalExam.cooldownHours !== undefined) course.finalExam.cooldownHours = finalExam.cooldownHours;
+      if (finalExam.timeLimit !== undefined) course.finalExam.timeLimit = finalExam.timeLimit;
+    }
+
+    await course.save();
+
+    res.status(200).json({
+      message: "Course updated successfully",
+      course: {
+        id: course._id,
+        title: course.title,
+        description: course.description,
+        totalChapters: course.totalChapters,
+        isPublished: course.isPublished,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE course
+export const deleteCourse = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const course = await Course.findById(id);
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Optional: Delete all related chapters, lessons, and user progress
+    // await Chapter.deleteMany({ courseId: id });
+    // await Lesson.deleteMany({ chapterId: { $in: course.chapters } });
+    // await UserProgress.deleteMany({ courseId: id });
+
+    await Course.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Course deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET all chapters
+export const getAllChapters = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.query;
+
+    const filter = courseId ? { courseId } : {};
+
+    const chapters = await Chapter.find(filter).populate("courseId", "title").populate("lessons", "title lessonNumber").sort({ chapterNumber: 1 });
+
+    res.status(200).json({
+      chapters: chapters.map((chapter) => ({
+        id: chapter._id,
+        courseId: chapter.courseId,
+        title: chapter.title,
+        description: chapter.description,
+        chapterNumber: chapter.chapterNumber,
+        lessonsCount: chapter.lessons.length,
+        testQuestionsCount: chapter.chapterTest.questions.length,
+        isPublished: chapter.isPublished,
+        createdAt: chapter.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET single chapter
+export const getChapterById = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const chapter = await Chapter.findById(id).populate("courseId", "title").populate("lessons", "title lessonNumber");
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    res.status(200).json({
+      chapter: {
+        id: chapter._id,
+        courseId: chapter.courseId,
+        title: chapter.title,
+        description: chapter.description,
+        chapterNumber: chapter.chapterNumber,
+        lessons: chapter.lessons,
+        chapterTest: chapter.chapterTest,
+        isPublished: chapter.isPublished,
+        createdAt: chapter.createdAt,
+        updatedAt: chapter.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE chapter
+export const updateChapter = async (req: Request<{ id: string }, {}, UpdateChapterBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { title, description, chapterNumber, isPublished, chapterTest } = req.body;
+
+    const chapter = await Chapter.findById(id);
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    // Update fields if provided
+    if (title !== undefined) chapter.title = title;
+    if (description !== undefined) chapter.description = description;
+    if (chapterNumber !== undefined) chapter.chapterNumber = chapterNumber;
+    if (isPublished !== undefined) chapter.isPublished = isPublished;
+    if (chapterTest !== undefined) {
+      if (chapterTest.questions !== undefined) chapter.chapterTest.questions = chapterTest.questions as any;
+      if (chapterTest.passingScore !== undefined) chapter.chapterTest.passingScore = chapterTest.passingScore;
+      if (chapterTest.cooldownHours !== undefined) chapter.chapterTest.cooldownHours = chapterTest.cooldownHours;
+      if (chapterTest.timeLimit !== undefined) chapter.chapterTest.timeLimit = chapterTest.timeLimit;
+    }
+
+    await chapter.save();
+
+    res.status(200).json({
+      message: "Chapter updated successfully",
+      chapter: {
+        id: chapter._id,
+        title: chapter.title,
+        description: chapter.description,
+        chapterNumber: chapter.chapterNumber,
+        isPublished: chapter.isPublished,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE chapter
+export const deleteChapter = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const chapter = await Chapter.findById(id);
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    // Remove chapter from course
+    await Course.findByIdAndUpdate(chapter.courseId, {
+      $pull: { chapters: id },
+    });
+
+    // Update totalChapters count
+    const course = await Course.findById(chapter.courseId);
+    if (course) {
+      course.totalChapters = course.chapters.length;
+      await course.save();
+    }
+
+    // Optional: Delete all related lessons
+    // await Lesson.deleteMany({ chapterId: id });
+
+    await Chapter.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Chapter deleted successfully",
     });
   } catch (error) {
     next(error);

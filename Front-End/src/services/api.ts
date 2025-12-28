@@ -55,4 +55,20 @@ export const courseAPI = {
   getCertificates: (courseId: string) => api.get<{ certificates: { main: Certificate | null; hipaa: Certificate | null } }>(`/courses/${courseId}/certificates`),
 };
 
+export const adminAPI = {
+  // Courses
+  getAllCourses: () => api.get("/admin/courses"),
+  getCourseById: (id: string) => api.get(`/admin/courses/${id}`),
+  createCourse: (data: { title: string; description: string; totalChapters: number }) => api.post("/admin/courses", data),
+  updateCourse: (id: string, data: any) => api.put(`/admin/courses/${id}`, data),
+  deleteCourse: (id: string) => api.delete(`/admin/courses/${id}`),
+
+  // Chapters
+  getAllChapters: (courseId?: string) => api.get("/admin/chapters", { params: courseId ? { courseId } : {} }),
+  getChapterById: (id: string) => api.get(`/admin/chapters/${id}`),
+  createChapter: (data: { courseId: string; title: string; description: string; chapterNumber: number }) => api.post("/admin/chapters", data),
+  updateChapter: (id: string, data: any) => api.put(`/admin/chapters/${id}`, data),
+  deleteChapter: (id: string) => api.delete(`/admin/chapters/${id}`),
+};
+
 export default api;

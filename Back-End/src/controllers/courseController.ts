@@ -1058,3 +1058,56 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
     next(error);
   }
 };
+
+export const getUserCertificates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Find all certificates for this user and course
+    const certificates = await Certificate.find({ userId, courseId }).sort({ createdAt: 1 });
+
+    if (certificates.length === 0) {
+      res.status(404).json({ message: "Certificates not found. You may need to complete the course first." });
+      return;
+    }
+
+    // Separate main and HIPAA certificates
+    const mainCertificate = certificates.find((cert) => cert.courseTitle !== "HIPAA for Medical Interpreters");
+    const hipaaCertificate = certificates.find((cert) => cert.courseTitle === "HIPAA for Medical Interpreters");
+
+    res.status(200).json({
+      certificates: {
+        main: mainCertificate
+          ? {
+              certificateNumber: mainCertificate.certificateNumber,
+              verificationCode: mainCertificate.verificationCode,
+              userName: mainCertificate.userName,
+              courseTitle: mainCertificate.courseTitle,
+              completionDate: mainCertificate.completionDate,
+              finalExamScore: mainCertificate.finalExamScore,
+              issuedAt: mainCertificate.issuedAt,
+            }
+          : null,
+        hipaa: hipaaCertificate
+          ? {
+              certificateNumber: hipaaCertificate.certificateNumber,
+              verificationCode: hipaaCertificate.verificationCode,
+              userName: hipaaCertificate.userName,
+              courseTitle: hipaaCertificate.courseTitle,
+              completionDate: hipaaCertificate.completionDate,
+              finalExamScore: hipaaCertificate.finalExamScore,
+              issuedAt: hipaaCertificate.issuedAt,
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

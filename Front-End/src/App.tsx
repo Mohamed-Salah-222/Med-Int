@@ -15,6 +15,9 @@ import QuizView from "./pages/QuizView";
 import ChapterTestView from "./pages/ChapterTestView";
 import FinalExamView from "./pages/FinalExamView";
 import CertificateView from "./pages/CertificateView";
+import AdminPanel from "./pages/AdminPanel";
+import AdminCourses from "./pages/AdminCourses";
+import AdminChapters from "./pages/AdminChapters";
 
 function App() {
   return (
@@ -113,6 +116,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <CertificateView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/courses"
+            element={
+              <ProtectedRoute>
+                <AdminCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/chapters"
+            element={
+              <ProtectedRoute>
+                <AdminChapters />
               </ProtectedRoute>
             }
           />

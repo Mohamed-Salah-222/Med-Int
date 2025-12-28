@@ -13,6 +13,8 @@ export interface IChapter extends Document {
     timeLimit: number;
   };
   isPublished: boolean;
+  createdAt: Date; 
+  updatedAt: Date; 
 }
 
 const chapterSchema = new Schema<IChapter>(

@@ -1,5 +1,5 @@
 import express from "express";
-import { getCourse, getChapter, getLesson, getLessonQuiz, submitLessonQuiz, getUserProgress, getChapterTest, submitChapterTest, getFinalExam, submitFinalExam, getDetailedProgress, getUserCertificate, verifyCertificate } from "../controllers/courseController";
+import { getCourse, getChapter, getLesson, getLessonQuiz, submitLessonQuiz, getUserProgress, getChapterTest, submitChapterTest, getFinalExam, submitFinalExam, getDetailedProgress, getUserCertificate, verifyCertificate, getUserCertificates } from "../controllers/courseController";
 import { submitQuizValidator, submitTestValidator, submitExamValidator } from "../validators/courseValidator";
 import authMiddleware from "../middleware/authMiddleware";
 
@@ -18,6 +18,7 @@ router.post("/:id/submit-exam", submitExamValidator, submitFinalExam);
 router.get("/:courseId/progress", getUserProgress);
 router.get("/:courseId/detailed-progress", getDetailedProgress);
 router.get("/:courseId/certificate", getUserCertificate);
+router.get("/:courseId/certificates", getUserCertificates);
 
 // Chapter routes
 router.get("/chapters/:id", getChapter);

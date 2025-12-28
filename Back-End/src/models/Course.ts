@@ -12,6 +12,8 @@ export interface ICourse extends Document {
     timeLimit: number;
   };
   isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const courseSchema = new Schema<ICourse>(
