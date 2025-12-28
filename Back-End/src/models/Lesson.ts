@@ -13,6 +13,8 @@ export interface ILesson extends Document {
     unlimitedAttempts: boolean;
   };
   isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const lessonSchema = new Schema<ILesson>(

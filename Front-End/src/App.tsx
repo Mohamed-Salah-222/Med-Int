@@ -18,6 +18,8 @@ import CertificateView from "./pages/CertificateView";
 import AdminPanel from "./pages/AdminPanel";
 import AdminCourses from "./pages/AdminCourses";
 import AdminChapters from "./pages/AdminChapters";
+import AdminLessons from "./pages/AdminLessons";
+import AdminQuestions from "./pages/AdminQuestions";
 
 function App() {
   return (
@@ -140,6 +142,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminChapters />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/lessons"
+            element={
+              <ProtectedRoute>
+                <AdminLessons />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/questions"
+            element={
+              <ProtectedRoute>
+                <AdminQuestions />
               </ProtectedRoute>
             }
           />

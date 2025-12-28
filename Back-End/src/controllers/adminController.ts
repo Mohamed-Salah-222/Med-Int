@@ -71,6 +71,30 @@ interface UpdateChapterBody {
   };
 }
 
+interface UpdateLessonBody {
+  title?: string;
+  lessonNumber?: number;
+  content?: string;
+  contentType?: "text" | "audio-exercise";
+  audioUrl?: string;
+  isPublished?: boolean;
+  quiz?: {
+    questions?: string[];
+    passingScore?: number;
+    unlimitedAttempts?: boolean;
+  };
+}
+
+interface UpdateQuestionBody {
+  questionText?: string;
+  options?: string[];
+  correctAnswer?: string;
+  type?: "quiz" | "test" | "exam";
+  explanation?: string;
+  audioUrl?: string;
+  difficulty?: "easy" | "medium" | "hard";
+}
+
 export const createCourse = async (req: Request<{}, {}, CreateCourseBody>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const errors = validationResult(req);
@@ -646,6 +670,257 @@ export const deleteChapter = async (req: Request<{ id: string }>, res: Response,
 
     res.status(200).json({
       message: "Chapter deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET all lessons
+export const getAllLessons = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { chapterId } = req.query;
+
+    const filter = chapterId ? { chapterId } : {};
+
+    const lessons = await Lesson.find(filter).populate("chapterId", "title chapterNumber").sort({ lessonNumber: 1 });
+
+    res.status(200).json({
+      lessons: lessons.map((lesson) => ({
+        id: lesson._id,
+        chapterId: lesson.chapterId,
+        title: lesson.title,
+        lessonNumber: lesson.lessonNumber,
+        contentType: lesson.contentType,
+        quizQuestionsCount: lesson.quiz.questions.length,
+        isPublished: lesson.isPublished,
+        createdAt: lesson.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET single lesson
+export const getLessonById = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const lesson = await Lesson.findById(id).populate("chapterId", "title chapterNumber");
+
+    if (!lesson) {
+      res.status(404).json({ message: "Lesson not found" });
+      return;
+    }
+
+    res.status(200).json({
+      lesson: {
+        id: lesson._id,
+        chapterId: lesson.chapterId,
+        title: lesson.title,
+        lessonNumber: lesson.lessonNumber,
+        content: lesson.content,
+        contentType: lesson.contentType,
+        audioUrl: lesson.audioUrl,
+        quiz: lesson.quiz,
+        isPublished: lesson.isPublished,
+        createdAt: lesson.createdAt,
+        updatedAt: lesson.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE lesson
+export const updateLesson = async (req: Request<{ id: string }, {}, UpdateLessonBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { title, lessonNumber, content, contentType, audioUrl, isPublished, quiz } = req.body;
+
+    const lesson = await Lesson.findById(id);
+
+    if (!lesson) {
+      res.status(404).json({ message: "Lesson not found" });
+      return;
+    }
+
+    // Update fields if provided
+    if (title !== undefined) lesson.title = title;
+    if (lessonNumber !== undefined) lesson.lessonNumber = lessonNumber;
+    if (content !== undefined) lesson.content = content;
+    if (contentType !== undefined) lesson.contentType = contentType;
+    if (audioUrl !== undefined) lesson.audioUrl = audioUrl;
+    if (isPublished !== undefined) lesson.isPublished = isPublished;
+    if (quiz !== undefined) {
+      if (quiz.questions !== undefined) lesson.quiz.questions = quiz.questions as any;
+      if (quiz.passingScore !== undefined) lesson.quiz.passingScore = quiz.passingScore;
+      if (quiz.unlimitedAttempts !== undefined) lesson.quiz.unlimitedAttempts = quiz.unlimitedAttempts;
+    }
+
+    await lesson.save();
+
+    res.status(200).json({
+      message: "Lesson updated successfully",
+      lesson: {
+        id: lesson._id,
+        title: lesson.title,
+        lessonNumber: lesson.lessonNumber,
+        isPublished: lesson.isPublished,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE lesson
+export const deleteLesson = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const lesson = await Lesson.findById(id);
+
+    if (!lesson) {
+      res.status(404).json({ message: "Lesson not found" });
+      return;
+    }
+
+    // Remove lesson from chapter
+    await Chapter.findByIdAndUpdate(lesson.chapterId, {
+      $pull: { lessons: id },
+    });
+
+    await Lesson.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Lesson deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET all questions
+export const getAllQuestions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { type } = req.query;
+
+    const filter = type ? { type } : {};
+
+    const questions = await Question.find(filter).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      questions: questions.map((question) => ({
+        id: question._id,
+        questionText: question.questionText,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        type: question.type,
+        difficulty: question.difficulty,
+        hasExplanation: !!question.explanation,
+        hasAudio: !!question.audioUrl,
+        createdAt: question.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET single question
+export const getQuestionById = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const question = await Question.findById(id);
+
+    if (!question) {
+      res.status(404).json({ message: "Question not found" });
+      return;
+    }
+
+    res.status(200).json({
+      question: {
+        id: question._id,
+        questionText: question.questionText,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        type: question.type,
+        explanation: question.explanation,
+        audioUrl: question.audioUrl,
+        difficulty: question.difficulty,
+        createdAt: question.createdAt,
+        updatedAt: question.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE question
+export const updateQuestion = async (req: Request<{ id: string }, {}, UpdateQuestionBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { questionText, options, correctAnswer, type, explanation, audioUrl, difficulty } = req.body;
+
+    const question = await Question.findById(id);
+
+    if (!question) {
+      res.status(404).json({ message: "Question not found" });
+      return;
+    }
+
+    // Update fields if provided
+    if (questionText !== undefined) question.questionText = questionText;
+    if (options !== undefined) question.options = options;
+    if (correctAnswer !== undefined) question.correctAnswer = correctAnswer;
+    if (type !== undefined) question.type = type;
+    if (explanation !== undefined) question.explanation = explanation;
+    if (audioUrl !== undefined) question.audioUrl = audioUrl;
+    if (difficulty !== undefined) question.difficulty = difficulty;
+
+    await question.save();
+
+    res.status(200).json({
+      message: "Question updated successfully",
+      question: {
+        id: question._id,
+        questionText: question.questionText,
+        type: question.type,
+        difficulty: question.difficulty,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE question
+export const deleteQuestion = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const question = await Question.findById(id);
+
+    if (!question) {
+      res.status(404).json({ message: "Question not found" });
+      return;
+    }
+
+    // Optional: Remove question from all lessons/chapters/courses that reference it
+    // await Lesson.updateMany(
+    //   { 'quiz.questions': id },
+    //   { $pull: { 'quiz.questions': id } }
+    // );
+
+    await Question.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Question deleted successfully",
     });
   } catch (error) {
     next(error);

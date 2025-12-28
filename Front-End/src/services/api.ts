@@ -69,6 +69,20 @@ export const adminAPI = {
   createChapter: (data: { courseId: string; title: string; description: string; chapterNumber: number }) => api.post("/admin/chapters", data),
   updateChapter: (id: string, data: any) => api.put(`/admin/chapters/${id}`, data),
   deleteChapter: (id: string) => api.delete(`/admin/chapters/${id}`),
+
+  // Lessons
+  getAllLessons: (chapterId?: string) => api.get("/admin/lessons", { params: chapterId ? { chapterId } : {} }),
+  getLessonById: (id: string) => api.get(`/admin/lessons/${id}`),
+  createLesson: (data: { chapterId: string; title: string; lessonNumber: number; content: string; contentType?: string }) => api.post("/admin/lessons", data),
+  updateLesson: (id: string, data: any) => api.put(`/admin/lessons/${id}`, data),
+  deleteLesson: (id: string) => api.delete(`/admin/lessons/${id}`),
+
+  // Questions
+  getAllQuestions: (type?: string) => api.get("/admin/questions", { params: type ? { type } : {} }),
+  getQuestionById: (id: string) => api.get(`/admin/questions/${id}`),
+  createQuestion: (data: { questionText: string; options: string[]; correctAnswer: string; type: "quiz" | "test" | "exam"; explanation?: string; audioUrl?: string; difficulty?: "easy" | "medium" | "hard" }) => api.post("/admin/questions", data),
+  updateQuestion: (id: string, data: any) => api.put(`/admin/questions/${id}`, data),
+  deleteQuestion: (id: string) => api.delete(`/admin/questions/${id}`),
 };
 
 export default api;

@@ -3,11 +3,13 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IQuestion extends Document {
   questionText: string;
   options: string[];
-  correctAnswer: string; // Changed from number to string
+  correctAnswer: string;
   type: "quiz" | "test" | "exam";
   explanation?: string;
   audioUrl?: string;
   difficulty?: "easy" | "medium" | "hard";
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const questionSchema = new Schema<IQuestion>(
