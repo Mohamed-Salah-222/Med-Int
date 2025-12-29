@@ -1,8 +1,7 @@
 import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { Shield, TrendingUp, Award, CheckCircle, BookOpen, Target } from "lucide-react";
-import UserMenu from "../components/UserMenu";
+import { Shield, TrendingUp, Award, CheckCircle, BookOpen, Target, LogOut, LayoutDashboard, User as UserIcon, Settings } from "lucide-react";
 
 function Landing() {
   const navigate = useNavigate();
@@ -17,6 +16,13 @@ function Landing() {
     );
   }
 
+  const handleLogout = () => {
+    if (auth?.logout) {
+      auth.logout();
+      navigate("/");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFAF8]">
       {/* Navigation */}
@@ -29,10 +35,10 @@ function Landing() {
             </span>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {!auth?.token ? (
               <>
-                <button onClick={() => navigate("/login")} className="text-[#2C2C2C] hover:text-[#7A9D96] font-semibold transition-colors">
+                <button onClick={() => navigate("/login")} className="text-[#2C2C2C] hover:text-[#7A9D96] font-semibold transition-colors px-4 py-2">
                   Login
                 </button>
                 <button onClick={() => navigate("/register")} className="bg-[#7A9D96] text-white px-6 py-2.5 rounded-lg hover:bg-[#6A8D86] font-semibold transition-all shadow-sm hover:shadow-md">
@@ -40,7 +46,33 @@ function Landing() {
                 </button>
               </>
             ) : (
-              <UserMenu userName={auth.user?.name || "User"} onLogout={auth.logout} />
+              <>
+                {/* Dashboard Link */}
+                <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </button>
+
+                {/* Profile Link */}
+                <button onClick={() => navigate("/profile")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                  <UserIcon className="w-4 h-4" />
+                  <span>Profile</span>
+                </button>
+
+                {/* Admin Panel Link (only for Admin/SuperVisor) */}
+                {(auth?.user?.role === "Admin" || auth?.user?.role === "SuperVisor") && (
+                  <button onClick={() => navigate("/admin")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                    <Settings className="w-4 h-4" />
+                    <span>Admin</span>
+                  </button>
+                )}
+
+                {/* Logout Button */}
+                <button onClick={handleLogout} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-semibold transition-all">
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -51,7 +83,7 @@ function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-5xl md:text-6xl font-bold text-[#2C2C2C] mb-6 leading-tight" style={{ fontFamily: "Playfair Display, serif" }}>
+              <h1 className="text-5xl md:text-6xl font-bold text-[#2C2C2C] mb-6 leading-tight" style={{ fontFamily: "Lexend, sans-serif" }}>
                 Save Lives Through <span className="text-[#7A9D96]">Accurate</span> Communication
               </h1>
               <p className="text-xl text-[#6B6B6B] mb-8 leading-relaxed">Become a certified medical interpreter. Bridge language barriers in healthcare and make a real difference in patients' lives while building a secure, AI-proof career.</p>

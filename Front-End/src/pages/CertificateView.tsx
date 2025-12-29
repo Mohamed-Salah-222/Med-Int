@@ -88,7 +88,7 @@ function CertificateView() {
           {/* Success Banner - Hidden on print */}
           <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white rounded-2xl shadow-xl p-12 mb-12 text-center print:hidden">
             <div className="text-7xl mb-6">🎓</div>
-            <h1 className="text-5xl font-bold mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-5xl font-bold mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Congratulations!
             </h1>
             <p className="text-2xl text-white/90">You have successfully completed the Medical Interpretation Course</p>
@@ -113,7 +113,7 @@ function CertificateView() {
               <div className="bg-white rounded-2xl shadow-2xl p-10 border-4 border-[#7A9D96] print:shadow-none print:break-inside-avoid">
                 <div className="text-center mb-8">
                   <Shield className="w-16 h-16 text-[#7A9D96] mx-auto mb-4" strokeWidth={1.5} />
-                  <h2 className="text-3xl font-bold text-[#7A9D96] mb-3" style={{ fontFamily: "Playfair Display, serif" }}>
+                  <h2 className="text-3xl font-bold text-[#7A9D96] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
                     Medical Interpreter Certificate
                   </h2>
                   <div className="h-1 w-24 bg-[#7A9D96] mx-auto"></div>
@@ -122,7 +122,7 @@ function CertificateView() {
                 <div className="space-y-6">
                   <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
                     <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
-                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
                       {certificates.main.userName}
                     </p>
                     <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
@@ -169,7 +169,7 @@ function CertificateView() {
               <div className="bg-white rounded-2xl shadow-2xl p-10 border-4 border-[#2C2C2C] print:shadow-none print:break-inside-avoid">
                 <div className="text-center mb-8">
                   <Shield className="w-16 h-16 text-[#2C2C2C] mx-auto mb-4" strokeWidth={1.5} />
-                  <h2 className="text-3xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Playfair Display, serif" }}>
+                  <h2 className="text-3xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
                     HIPAA Compliance Certificate
                   </h2>
                   <div className="h-1 w-24 bg-[#2C2C2C] mx-auto"></div>
@@ -178,7 +178,7 @@ function CertificateView() {
                 <div className="space-y-6">
                   <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
                     <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
-                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
                       {certificates.hipaa.userName}
                     </p>
                     <p className="text-[#6B6B6B] mb-2">has successfully completed</p>

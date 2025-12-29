@@ -80,7 +80,7 @@ function QuizView() {
             <div className={`rounded-2xl shadow-xl p-12 mb-8 ${results.passed ? "bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500" : "bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-500"}`}>
               <div className="text-center">
                 {results.passed ? <Trophy className="w-20 h-20 text-green-600 mx-auto mb-6" strokeWidth={1.5} /> : <BookOpen className="w-20 h-20 text-orange-600 mx-auto mb-6" strokeWidth={1.5} />}
-                <h1 className="text-4xl font-bold mb-4 text-[#2C2C2C]" style={{ fontFamily: "Playfair Display, serif" }}>
+                <h1 className="text-4xl font-bold mb-4 text-[#2C2C2C]" style={{ fontFamily: "Lexend, sans-serif" }}>
                   {results.passed ? "Great Job!" : "Keep Practicing!"}
                 </h1>
                 <div className="text-6xl font-bold mb-4 text-[#2C2C2C]">{results.score}%</div>
@@ -158,7 +158,7 @@ function QuizView() {
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+                <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
                   Lesson Quiz
                 </h1>
                 <p className="text-[#6B6B6B]">Test your understanding of the material</p>

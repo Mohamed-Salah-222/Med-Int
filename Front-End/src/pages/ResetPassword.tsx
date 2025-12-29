@@ -86,7 +86,7 @@ function ResetPassword() {
                 <CheckCircle className="w-12 h-12 text-white" strokeWidth={2} />
               </div>
             </div>
-            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Password Reset!
             </h1>
             <p className="text-xl text-[#6B6B6B] mb-8">Your password has been successfully updated.</p>
@@ -121,7 +121,7 @@ function ResetPassword() {
               </div>
               <span className="text-2xl font-bold text-[#2C2C2C]">Medical Interpreter Academy</span>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Create New Password
             </h1>
             <p className="text-[#6B6B6B]">Choose a strong password to secure your account</p>
@@ -216,7 +216,7 @@ function ResetPassword() {
 
         <div className="relative z-10 text-center max-w-lg">
           <KeyRound className="w-32 h-32 text-white mx-auto mb-8 animate-float" strokeWidth={1} />
-          <h2 className="text-4xl font-bold text-white mb-6" style={{ fontFamily: "Playfair Display, serif" }}>
+          <h2 className="text-4xl font-bold text-white mb-6" style={{ fontFamily: "Lexend, sans-serif" }}>
             Almost There
           </h2>
           <p className="text-xl text-white/90 leading-relaxed mb-8">Choose a strong, unique password to keep your account secure and continue your certification journey.</p>

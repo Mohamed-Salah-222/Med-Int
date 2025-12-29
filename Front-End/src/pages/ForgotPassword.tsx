@@ -36,7 +36,7 @@ function ForgotPassword() {
                 <CheckCircle className="w-10 h-10 text-white" strokeWidth={2} />
               </div>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Check Your Email
             </h1>
             <p className="text-lg text-[#6B6B6B] mb-8">
@@ -85,7 +85,7 @@ function ForgotPassword() {
               </div>
               <span className="text-2xl font-bold text-[#2C2C2C]">Medical Interpreter Academy</span>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Reset Password
             </h1>
             <p className="text-[#6B6B6B]">Enter your email and we'll send you a reset link</p>
@@ -145,7 +145,7 @@ function ForgotPassword() {
 
         <div className="relative z-10 text-center max-w-lg">
           <KeyRound className="w-32 h-32 text-white mx-auto mb-8 animate-float" strokeWidth={1} />
-          <h2 className="text-4xl font-bold text-white mb-6" style={{ fontFamily: "Playfair Display, serif" }}>
+          <h2 className="text-4xl font-bold text-white mb-6" style={{ fontFamily: "Lexend, sans-serif" }}>
             Don't Worry
           </h2>
           <p className="text-xl text-white/90 leading-relaxed mb-8">It happens to everyone. We'll send you a secure link to reset your password and get you back on track.</p>

@@ -56,7 +56,7 @@ function Dashboard() {
         <div className="max-w-7xl mx-auto px-6">
           {/* Welcome Section */}
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Welcome back, {auth?.user?.name}!
             </h1>
             <p className="text-xl text-[#6B6B6B]">Continue your journey to becoming a certified medical interpreter</p>
@@ -196,7 +196,7 @@ function Dashboard() {
 
           {/* Chapters Progress */}
           <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-[#2C2C2C]" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h2 className="text-3xl font-bold text-[#2C2C2C]" style={{ fontFamily: "Lexend, sans-serif" }}>
               Your Learning Path
             </h2>
 

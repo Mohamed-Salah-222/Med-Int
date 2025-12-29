@@ -1,8 +1,7 @@
 import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import UserMenu from "./UserMenu";
-import { Shield } from "lucide-react";
+import { Shield, LogOut, LayoutDashboard, User, Settings } from "lucide-react";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +11,13 @@ interface LayoutProps {
 function Layout({ children, showAuth = true }: LayoutProps) {
   const navigate = useNavigate();
   const auth = useContext(AuthContext);
+
+  const handleLogout = () => {
+    if (auth?.logout) {
+      auth.logout();
+      navigate("/");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAF8]">
@@ -26,10 +32,10 @@ function Layout({ children, showAuth = true }: LayoutProps) {
           </div>
 
           {showAuth && (
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
               {!auth?.token ? (
                 <>
-                  <button onClick={() => navigate("/login")} className="text-[#2C2C2C] hover:text-[#7A9D96] font-semibold transition-colors">
+                  <button onClick={() => navigate("/login")} className="text-[#2C2C2C] hover:text-[#7A9D96] font-semibold transition-colors px-4 py-2">
                     Login
                   </button>
                   <button onClick={() => navigate("/register")} className="bg-[#7A9D96] text-white px-6 py-2.5 rounded-lg hover:bg-[#6A8D86] font-semibold transition-all shadow-sm hover:shadow-md">
@@ -37,7 +43,33 @@ function Layout({ children, showAuth = true }: LayoutProps) {
                   </button>
                 </>
               ) : (
-                <UserMenu userName={auth.user?.name || "User"} onLogout={auth.logout} />
+                <>
+                  {/* Dashboard Link */}
+                  <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </button>
+
+                  {/* Profile Link */}
+                  <button onClick={() => navigate("/profile")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                    <User className="w-4 h-4" />
+                    <span>Profile</span>
+                  </button>
+
+                  {/* Admin Panel Link (only for Admin/SuperVisor) */}
+                  {(auth?.user?.role === "Admin" || auth?.user?.role === "SuperVisor") && (
+                    <button onClick={() => navigate("/admin")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                      <Settings className="w-4 h-4" />
+                      <span>Admin</span>
+                    </button>
+                  )}
+
+                  {/* Logout Button */}
+                  <button onClick={handleLogout} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-semibold transition-all">
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </>
               )}
             </div>
           )}

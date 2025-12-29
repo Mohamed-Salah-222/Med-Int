@@ -83,7 +83,7 @@ function AdminPanel() {
         <div className="max-w-7xl mx-auto px-6">
           {/* Header */}
           <div className="mb-12">
-            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Admin Panel
             </h1>
             <p className="text-xl text-[#6B6B6B]">

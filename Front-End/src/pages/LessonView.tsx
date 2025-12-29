@@ -59,7 +59,7 @@ function LessonView() {
               <BookOpen className="w-8 h-8 mr-3" strokeWidth={1.5} />
               <span className="text-lg font-semibold">Lesson {lesson.lessonNumber}</span>
             </div>
-            <h1 className="text-5xl font-bold leading-tight" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-5xl font-bold leading-tight" style={{ fontFamily: "Lexend, sans-serif" }}>
               {lesson.title}
             </h1>
           </div>

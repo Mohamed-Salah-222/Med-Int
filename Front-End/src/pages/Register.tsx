@@ -66,7 +66,7 @@ function Register() {
               </div>
               <span className="text-2xl font-bold text-[#2C2C2C]">Medical Interpreter Academy</span>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Create Account
             </h1>
             <p className="text-[#6B6B6B]">Start your certification journey today</p>
@@ -163,7 +163,7 @@ function Register() {
         <div className="relative z-10 max-w-lg">
           {/* Main Content */}
           <div className="text-white mb-12">
-            <h2 className="text-5xl font-bold mb-6 leading-tight" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h2 className="text-5xl font-bold mb-6 leading-tight" style={{ fontFamily: "Lexend, sans-serif" }}>
               Launch Your Medical Interpreter Career
             </h2>
             <p className="text-xl text-white/90 leading-relaxed">Join thousands of certified medical interpreters making a difference in healthcare while building a secure, AI-proof career.</p>

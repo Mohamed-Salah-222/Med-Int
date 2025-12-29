@@ -201,7 +201,7 @@ function AdminUserDetail() {
               <div className="flex items-start space-x-6">
                 <div className="w-20 h-20 bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] rounded-full flex items-center justify-center text-white text-3xl font-bold">{user.name.charAt(0).toUpperCase()}</div>
                 <div>
-                  <h1 className="text-3xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+                  <h1 className="text-3xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
                     {user.name}
                   </h1>
                   <div className="flex items-center space-x-3 mb-3">

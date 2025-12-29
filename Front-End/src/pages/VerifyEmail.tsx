@@ -84,7 +84,7 @@ function VerifyEmail() {
                 <CheckCircle className="w-12 h-12 text-white" strokeWidth={2} />
               </div>
             </div>
-            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Email Verified!
             </h1>
             <p className="text-xl text-[#6B6B6B] mb-8">Your email has been successfully verified.</p>
@@ -119,7 +119,7 @@ function VerifyEmail() {
               </div>
               <span className="text-2xl font-bold text-[#2C2C2C]">Medical Interpreter Academy</span>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Verify Your Email
             </h1>
             <p className="text-[#6B6B6B]">
@@ -217,7 +217,7 @@ function VerifyEmail() {
 
         <div className="relative z-10 text-center max-w-lg">
           <Mail className="w-32 h-32 text-white mx-auto mb-8 animate-bounce-slow" strokeWidth={1} />
-          <h2 className="text-4xl font-bold text-white mb-6" style={{ fontFamily: "Playfair Display, serif" }}>
+          <h2 className="text-4xl font-bold text-white mb-6" style={{ fontFamily: "Lexend, sans-serif" }}>
             Check Your Inbox
           </h2>
           <p className="text-xl text-white/90 leading-relaxed mb-8">We've sent a verification code to your email address. Enter it to activate your account and start learning.</p>

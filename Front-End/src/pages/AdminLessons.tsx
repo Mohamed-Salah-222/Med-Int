@@ -252,7 +252,7 @@ function AdminLessons() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+              <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
                 Lessons
               </h1>
               <p className="text-[#6B6B6B]">Create and manage lesson content</p>

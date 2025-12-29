@@ -139,7 +139,7 @@ function FinalExamView() {
             <div className={`rounded-2xl shadow-2xl p-12 mb-8 ${results.passed ? "bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500" : "bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-500"}`}>
               <div className="text-center">
                 {results.passed ? <Trophy className="w-24 h-24 text-green-600 mx-auto mb-6" strokeWidth={1.5} /> : <AlertCircle className="w-24 h-24 text-red-600 mx-auto mb-6" strokeWidth={1.5} />}
-                <h1 className="text-5xl font-bold mb-4 text-[#2C2C2C]" style={{ fontFamily: "Playfair Display, serif" }}>
+                <h1 className="text-5xl font-bold mb-4 text-[#2C2C2C]" style={{ fontFamily: "Lexend, sans-serif" }}>
                   {results.passed ? "Congratulations!" : "Keep Trying!"}
                 </h1>
                 <div className="text-7xl font-bold mb-4 text-[#2C2C2C]">{results.score}%</div>
@@ -263,7 +263,7 @@ function FinalExamView() {
           <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-2xl shadow-2xl p-8 mb-8 text-white">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-5xl font-bold mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+                <h1 className="text-5xl font-bold mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
                   Final Exam
                 </h1>
                 <p className="text-xl text-purple-100">Your last step to certification</p>

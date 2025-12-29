@@ -121,7 +121,7 @@ function AdminStatistics() {
         <div className="max-w-7xl mx-auto px-6">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Playfair Display, serif" }}>
+            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Statistics & Analytics
             </h1>
             <p className="text-[#6B6B6B]">Platform performance and user activity insights</p>
