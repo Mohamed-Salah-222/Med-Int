@@ -83,6 +83,25 @@ export const adminAPI = {
   createQuestion: (data: { questionText: string; options: string[]; correctAnswer: string; type: "quiz" | "test" | "exam"; explanation?: string; audioUrl?: string; difficulty?: "easy" | "medium" | "hard" }) => api.post("/admin/questions", data),
   updateQuestion: (id: string, data: any) => api.put(`/admin/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete(`/admin/questions/${id}`),
+
+  // Statistics - ADD THIS
+  getStatistics: () => api.get("/admin/statistics"),
+
+  // Users
+  getAllUsers: (params?: { page?: number; limit?: number; search?: string; role?: string }) => api.get("/admin/users", { params }),
+  getUserById: (id: string) => api.get(`/admin/users/${id}`),
+  updateUserRole: (id: string, role: string) => api.put(`/admin/users/${id}/role`, { role }),
+  resetTestCooldown: (id: string, chapterId: string) => api.put(`/admin/users/${id}/reset-test-cooldown`, { chapterId }),
+  resetExamCooldown: (id: string) => api.put(`/admin/users/${id}/reset-exam-cooldown`),
+  resetUserProgress: (id: string) => api.delete(`/admin/users/${id}/progress`),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
+
+  getAllCertificates: () => api.get("/admin/dashboard/certificates"),
+
+  // Settings
+  getSettings: () => api.get("/admin/settings"),
+  updateSettings: (data: any) => api.put("/admin/settings", data),
+  testEmail: () => api.post("/admin/settings/test-email"),
 };
 
 export default api;

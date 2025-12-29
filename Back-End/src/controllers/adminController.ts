@@ -7,6 +7,7 @@ import Question from "../models/Question";
 import User from "../models/User";
 import Certificate from "../models/Certificate";
 import UserProgress from "../models/UserProgress";
+import Settings from "../models/Settings";
 
 interface CreateCourseBody {
   title: string;
@@ -921,6 +922,629 @@ export const deleteQuestion = async (req: Request<{ id: string }>, res: Response
 
     res.status(200).json({
       message: "Question deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStatistics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Basic Counts
+    const totalUsers = await User.countDocuments();
+    const totalCourses = await Course.countDocuments();
+    const totalChapters = await Chapter.countDocuments();
+    const totalLessons = await Lesson.countDocuments();
+    const totalQuestions = await Question.countDocuments();
+
+    // Questions by Type
+    const quizQuestions = await Question.countDocuments({ type: "quiz" });
+    const testQuestions = await Question.countDocuments({ type: "test" });
+    const examQuestions = await Question.countDocuments({ type: "exam" });
+
+    // User Progress Stats
+    const allProgress = await UserProgress.find();
+
+    // Calculate quiz attempts
+    let totalQuizAttempts = 0;
+    let passedQuizzes = 0;
+    let totalQuizScore = 0;
+    let quizCount = 0;
+
+    allProgress.forEach((progress) => {
+      progress.completedLessons.forEach((lesson) => {
+        totalQuizAttempts += lesson.attempts || 0;
+        if (lesson.passed) passedQuizzes++;
+        if (lesson.quizScore) {
+          totalQuizScore += lesson.quizScore;
+          quizCount++;
+        }
+      });
+    });
+
+    // Calculate test attempts
+    let totalTestAttempts = 0;
+    let passedTests = 0;
+    let totalTestScore = 0;
+
+    allProgress.forEach((progress) => {
+      totalTestAttempts += progress.chapterTestAttempts.length;
+      progress.chapterTestAttempts.forEach((test) => {
+        if (test.passed) passedTests++;
+        if (test.score) totalTestScore += test.score;
+      });
+    });
+
+    // Calculate exam attempts
+    let totalExamAttempts = 0;
+    let passedExams = 0;
+    let totalExamScore = 0;
+
+    allProgress.forEach((progress) => {
+      totalExamAttempts += progress.finalExamAttempts.length;
+      progress.finalExamAttempts.forEach((exam) => {
+        if (exam.passed) passedExams++;
+        if (exam.score) totalExamScore += exam.score;
+      });
+    });
+
+    // Course completion
+    const completedCourses = await UserProgress.countDocuments({ courseCompleted: true });
+    const certificatesIssued = await UserProgress.countDocuments({ certificateIssued: true });
+
+    // Average scores
+    const avgQuizScore = quizCount > 0 ? Math.round(totalQuizScore / quizCount) : 0;
+    const avgTestScore = totalTestAttempts > 0 ? Math.round(totalTestScore / totalTestAttempts) : 0;
+    const avgExamScore = totalExamAttempts > 0 ? Math.round(totalExamScore / totalExamAttempts) : 0;
+
+    // Pass rates
+    const quizPassRate = totalQuizAttempts > 0 ? Math.round((passedQuizzes / totalQuizAttempts) * 100) : 0;
+    const testPassRate = totalTestAttempts > 0 ? Math.round((passedTests / totalTestAttempts) * 100) : 0;
+    const examPassRate = totalExamAttempts > 0 ? Math.round((passedExams / totalExamAttempts) * 100) : 0;
+
+    // Recent activity (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentUsers = await User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
+
+    let recentQuizAttempts = 0;
+    let recentTestAttempts = 0;
+    let recentExamAttempts = 0;
+
+    allProgress.forEach((progress) => {
+      progress.completedLessons.forEach((lesson) => {
+        if (lesson.completedAt && lesson.completedAt >= thirtyDaysAgo) {
+          recentQuizAttempts++;
+        }
+      });
+      progress.chapterTestAttempts.forEach((test) => {
+        if (test.attemptedAt && test.attemptedAt >= thirtyDaysAgo) {
+          recentTestAttempts++;
+        }
+      });
+      progress.finalExamAttempts.forEach((exam) => {
+        if (exam.attemptedAt && exam.attemptedAt >= thirtyDaysAgo) {
+          recentExamAttempts++;
+        }
+      });
+    });
+
+    // Activity by day (last 7 days for chart)
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      last7Days.push(date);
+    }
+
+    const dailyActivity = last7Days.map((date) => {
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      let quizzes = 0;
+      let tests = 0;
+      let exams = 0;
+
+      allProgress.forEach((progress) => {
+        progress.completedLessons.forEach((lesson) => {
+          if (lesson.completedAt && lesson.completedAt >= date && lesson.completedAt < nextDate) {
+            quizzes++;
+          }
+        });
+        progress.chapterTestAttempts.forEach((test) => {
+          if (test.attemptedAt && test.attemptedAt >= date && test.attemptedAt < nextDate) {
+            tests++;
+          }
+        });
+        progress.finalExamAttempts.forEach((exam) => {
+          if (exam.attemptedAt && exam.attemptedAt >= date && exam.attemptedAt < nextDate) {
+            exams++;
+          }
+        });
+      });
+
+      return {
+        date: date.toISOString().split("T")[0],
+        quizzes,
+        tests,
+        exams,
+      };
+    });
+
+    res.status(200).json({
+      overview: {
+        totalUsers,
+        totalCourses,
+        totalChapters,
+        totalLessons,
+        totalQuestions,
+        completedCourses,
+        certificatesIssued,
+      },
+      questions: {
+        total: totalQuestions,
+        quiz: quizQuestions,
+        test: testQuestions,
+        exam: examQuestions,
+      },
+      attempts: {
+        quizzes: {
+          total: totalQuizAttempts,
+          passed: passedQuizzes,
+          avgScore: avgQuizScore,
+          passRate: quizPassRate,
+        },
+        tests: {
+          total: totalTestAttempts,
+          passed: passedTests,
+          avgScore: avgTestScore,
+          passRate: testPassRate,
+        },
+        exams: {
+          total: totalExamAttempts,
+          passed: passedExams,
+          avgScore: avgExamScore,
+          passRate: examPassRate,
+        },
+      },
+      recentActivity: {
+        newUsers: recentUsers,
+        quizAttempts: recentQuizAttempts,
+        testAttempts: recentTestAttempts,
+        examAttempts: recentExamAttempts,
+      },
+      dailyActivity,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET all users with pagination and progress
+export const getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { page = 1, limit = 20, search = "", role = "" } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter
+    const filter: any = {};
+
+    if (search) {
+      filter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+    }
+
+    if (role) {
+      filter.role = role;
+    }
+
+    // Get users
+    const users = await User.find(filter).select("name email role isVerified createdAt").sort({ createdAt: -1 }).skip(skip).limit(limitNum);
+
+    const total = await User.countDocuments(filter);
+
+    // Get progress for each user
+    const usersWithProgress = await Promise.all(
+      users.map(async (user) => {
+        const progress = await UserProgress.findOne({
+          userId: user._id,
+          courseId: process.env.COURSE_ID,
+        });
+
+        let completionPercentage = 0;
+        if (progress) {
+          const course = await Course.findById(process.env.COURSE_ID);
+          if (course && course.chapters && course.chapters.length > 0) {
+            // FIX: Cast to any to avoid TypeScript issues
+            const chapterIds = course.chapters.map((id) => id.toString());
+            const totalLessons = await Lesson.countDocuments({
+              chapterId: { $in: chapterIds as any },
+            });
+            if (totalLessons > 0) {
+              completionPercentage = Math.round((progress.completedLessons.length / totalLessons) * 100);
+            }
+          }
+        }
+
+        return {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt,
+          completionPercentage,
+          courseCompleted: progress?.courseCompleted || false,
+          certificateIssued: progress?.certificateIssued || false,
+        };
+      })
+    );
+
+    res.status(200).json({
+      users: usersWithProgress,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET single user with full details
+export const getUserById = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id).select("-password");
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    // Get user progress
+    const progress = await UserProgress.findOne({
+      userId: id,
+      courseId: process.env.COURSE_ID,
+    })
+      .populate("completedLessons.lessonId", "title lessonNumber")
+      .populate("chapterTestAttempts.chapterId", "title chapterNumber");
+
+    // Calculate completion percentage
+    let completionPercentage = 0;
+    if (progress) {
+      const course = await Course.findById(process.env.COURSE_ID);
+      if (course && course.chapters && course.chapters.length > 0) {
+        // FIX: Cast to any to avoid TypeScript issues
+        const chapterIds = course.chapters.map((id) => id.toString());
+        const totalLessons = await Lesson.countDocuments({
+          chapterId: { $in: chapterIds as any },
+        });
+        if (totalLessons > 0) {
+          completionPercentage = Math.round((progress.completedLessons.length / totalLessons) * 100);
+        }
+      }
+    }
+
+    res.status(200).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      progress: progress
+        ? {
+            currentChapter: progress.currentChapterNumber,
+            currentLesson: progress.currentLessonNumber,
+            completionPercentage,
+            courseCompleted: progress.courseCompleted,
+            completedAt: progress.completedAt,
+            certificateIssued: progress.certificateIssued,
+            certificateIssuedAt: progress.certificateIssuedAt,
+            completedLessons: progress.completedLessons,
+            chapterTestAttempts: progress.chapterTestAttempts,
+            chapterTestCooldowns: progress.chapterTestCooldowns,
+            finalExamAttempts: progress.finalExamAttempts,
+            finalExamCooldown: progress.finalExamCooldown,
+          }
+        : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE user role
+export const updateUserRole = async (req: Request<{ id: string }, {}, { role: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!["Student", "Admin", "SuperVisor"].includes(role)) {
+      res.status(400).json({ message: "Invalid role" });
+      return;
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    user.role = role as any;
+    await user.save();
+
+    res.status(200).json({
+      message: "User role updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// RESET test cooldown
+export const resetTestCooldown = async (req: Request<{ id: string }, {}, { chapterId: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { chapterId } = req.body;
+
+    const progress = await UserProgress.findOne({
+      userId: id,
+      courseId: process.env.COURSE_ID,
+    });
+
+    if (!progress) {
+      res.status(404).json({ message: "User progress not found" });
+      return;
+    }
+
+    // Remove cooldown for this chapter
+    progress.chapterTestCooldowns = progress.chapterTestCooldowns.filter((cooldown) => cooldown.chapterId.toString() !== chapterId);
+
+    await progress.save();
+
+    res.status(200).json({
+      message: "Test cooldown reset successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// RESET exam cooldown
+export const resetExamCooldown = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const progress = await UserProgress.findOne({
+      userId: id,
+      courseId: process.env.COURSE_ID,
+    });
+
+    if (!progress) {
+      res.status(404).json({ message: "User progress not found" });
+      return;
+    }
+
+    // Remove exam cooldown
+    progress.finalExamCooldown = undefined;
+    await progress.save();
+
+    res.status(200).json({
+      message: "Exam cooldown reset successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE user
+export const deleteUser = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    // Delete user progress
+    await UserProgress.deleteMany({ userId: id });
+
+    // Delete user
+    await User.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// RESET user progress
+export const resetUserProgress = async (req: Request<{ id: string }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const progress = await UserProgress.findOne({
+      userId: id,
+      courseId: process.env.COURSE_ID,
+    });
+
+    if (!progress) {
+      res.status(404).json({ message: "User progress not found" });
+      return;
+    }
+
+    // Reset all progress
+    progress.currentChapterNumber = 1;
+    progress.currentLessonNumber = 1;
+    progress.completedLessons = [];
+    progress.chapterTestAttempts = [];
+    progress.chapterTestCooldowns = [];
+    progress.finalExamAttempts = [];
+    progress.finalExamCooldown = undefined;
+    progress.courseCompleted = false;
+    progress.completedAt = undefined;
+    progress.certificateIssued = false;
+    progress.certificateIssuedAt = undefined;
+
+    await progress.save();
+
+    res.status(200).json({
+      message: "User progress reset successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET settings
+export const getSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // Get or create settings (singleton pattern)
+    let settings = await Settings.findOne();
+
+    if (!settings) {
+      // Create default settings if none exist - FIX: Ensure single document
+      const newSettings = await Settings.create({});
+      settings = Array.isArray(newSettings) ? newSettings[0] : newSettings;
+    }
+
+    // At this point, settings is guaranteed to exist
+    if (!settings) {
+      res.status(500).json({ message: "Failed to create settings" });
+      return;
+    }
+
+    // Calculate system stats
+    const totalUsers = await User.countDocuments();
+    const totalCourses = await Course.countDocuments();
+    const totalQuestions = await Question.countDocuments();
+    const totalCertificates = await Certificate.countDocuments();
+
+    res.status(200).json({
+      settings: {
+        id: settings._id,
+        platformName: settings.platformName,
+        supportEmail: settings.supportEmail,
+        timezone: settings.timezone,
+        maintenanceMode: settings.maintenanceMode,
+        defaultQuizPassingScore: settings.defaultQuizPassingScore,
+        defaultTestPassingScore: settings.defaultTestPassingScore,
+        defaultExamPassingScore: settings.defaultExamPassingScore,
+        defaultTestCooldownHours: settings.defaultTestCooldownHours,
+        defaultExamCooldownHours: settings.defaultExamCooldownHours,
+        unlimitedQuizRetries: settings.unlimitedQuizRetries,
+        smtpConfigured: settings.smtpConfigured,
+        emailNotificationsEnabled: settings.emailNotificationsEnabled,
+        certificatePrefix: settings.certificatePrefix,
+        autoIssueCertificates: settings.autoIssueCertificates,
+        certificateTemplate: settings.certificateTemplate,
+        lastBackupDate: settings.lastBackupDate || null,
+        updatedAt: settings.updatedAt,
+      },
+      systemStats: {
+        totalUsers,
+        totalCourses,
+        totalQuestions,
+        totalCertificates,
+        apiVersion: "1.0.0",
+        nodeVersion: process.version,
+        uptime: Math.floor(process.uptime()),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE settings
+export const updateSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const updates = req.body;
+
+    let settings = await Settings.findOne();
+
+    if (!settings) {
+      // Create with updates if doesn't exist - FIX: Ensure single document
+      const newSettings = await Settings.create(updates);
+      settings = Array.isArray(newSettings) ? newSettings[0] : newSettings;
+    } else {
+      // Update only provided fields
+      const allowedFields = ["platformName", "supportEmail", "timezone", "maintenanceMode", "defaultQuizPassingScore", "defaultTestPassingScore", "defaultExamPassingScore", "defaultTestCooldownHours", "defaultExamCooldownHours", "unlimitedQuizRetries", "smtpConfigured", "emailNotificationsEnabled", "certificatePrefix", "autoIssueCertificates", "certificateTemplate"];
+
+      allowedFields.forEach((field) => {
+        if (updates[field] !== undefined) {
+          (settings as any)[field] = updates[field];
+        }
+      });
+
+      await settings.save();
+    }
+
+    // At this point, settings is guaranteed to exist
+    if (!settings) {
+      res.status(500).json({ message: "Failed to save settings" });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Settings updated successfully",
+      settings: {
+        id: settings._id,
+        platformName: settings.platformName,
+        supportEmail: settings.supportEmail,
+        timezone: settings.timezone,
+        maintenanceMode: settings.maintenanceMode,
+        defaultQuizPassingScore: settings.defaultQuizPassingScore,
+        defaultTestPassingScore: settings.defaultTestPassingScore,
+        defaultExamPassingScore: settings.defaultExamPassingScore,
+        defaultTestCooldownHours: settings.defaultTestCooldownHours,
+        defaultExamCooldownHours: settings.defaultExamCooldownHours,
+        unlimitedQuizRetries: settings.unlimitedQuizRetries,
+        smtpConfigured: settings.smtpConfigured,
+        emailNotificationsEnabled: settings.emailNotificationsEnabled,
+        certificatePrefix: settings.certificatePrefix,
+        autoIssueCertificates: settings.autoIssueCertificates,
+        certificateTemplate: settings.certificateTemplate,
+        lastBackupDate: settings.lastBackupDate || null,
+        updatedAt: settings.updatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// TEST email (placeholder for now)
+export const testEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    // TODO: Implement actual email sending
+    // For now, just simulate success
+    res.status(200).json({
+      message: "Test email sent successfully (simulated)",
+      success: true,
     });
   } catch (error) {
     next(error);

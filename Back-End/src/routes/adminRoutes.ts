@@ -26,6 +26,17 @@ import {
   getDashboardStats,
   getAllCertificates,
   getAllUsersProgress,
+  getStatistics,
+  getAllUsers, // ADD
+  getUserById, // ADD
+  updateUserRole, // ADD
+  resetTestCooldown, // ADD
+  resetExamCooldown, // ADD
+  deleteUser, // ADD
+  resetUserProgress, // ADD
+  getSettings, // ADD
+  updateSettings, // ADD
+  testEmail, // ADD
 } from "../controllers/adminController";
 import { createCourseValidator, createChapterValidator, createLessonValidator, createQuestionValidator, assignQuestionsValidator } from "../validators/adminValidator";
 
@@ -67,5 +78,21 @@ router.post("/assign-questions", assignQuestionsValidator, assignQuestions);
 router.get("/dashboard/stats", getDashboardStats);
 router.get("/dashboard/certificates", getAllCertificates);
 router.get("/dashboard/users-progress", getAllUsersProgress);
+
+router.get("/statistics", getStatistics);
+
+// User management routes
+router.get("/users", getAllUsers); // ADD
+router.get("/users/:id", getUserById); // ADD
+router.put("/users/:id/role", updateUserRole); // ADD
+router.put("/users/:id/reset-test-cooldown", resetTestCooldown); // ADD
+router.put("/users/:id/reset-exam-cooldown", resetExamCooldown); // ADD
+router.delete("/users/:id", deleteUser); // ADD
+router.delete("/users/:id/progress", resetUserProgress); // ADD
+
+// Settings routes
+router.get("/settings", getSettings); // ADD
+router.put("/settings", updateSettings); // ADD
+router.post("/settings/test-email", testEmail); // ADD
 
 export default router;

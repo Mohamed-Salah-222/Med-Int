@@ -20,6 +20,11 @@ import AdminCourses from "./pages/AdminCourses";
 import AdminChapters from "./pages/AdminChapters";
 import AdminLessons from "./pages/AdminLessons";
 import AdminQuestions from "./pages/AdminQuestions";
+import AdminStatistics from "./pages/AdminStatistics";
+import AdminUsers from "./pages/AdminUsers";
+import AdminUserDetail from "./pages/AdminUserDetail";
+import AdminCertificates from "./pages/AdminCertificates";
+import AdminSettings from "./pages/AdminSettings";
 
 function App() {
   return (
@@ -158,6 +163,46 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminQuestions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/stats"
+            element={
+              <ProtectedRoute>
+                <AdminStatistics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users/:id"
+            element={
+              <ProtectedRoute>
+                <AdminUserDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/certificates"
+            element={
+              <ProtectedRoute>
+                <AdminCertificates />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute>
+                <AdminSettings />
               </ProtectedRoute>
             }
           />
