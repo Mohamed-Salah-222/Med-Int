@@ -36,6 +36,7 @@ import {
   resetUserProgress, // ADD
   getSettings, // ADD
   updateSettings, // ADD
+  bulkCreateQuestions,
   testEmail, // ADD
 } from "../controllers/adminController";
 import { createCourseValidator, createChapterValidator, createLessonValidator, createQuestionValidator, assignQuestionsValidator } from "../validators/adminValidator";
@@ -72,6 +73,8 @@ router.get("/questions/:id", getQuestionById);
 router.post("/questions", createQuestionValidator, createQuestion);
 router.put("/questions/:id", updateQuestion);
 router.delete("/questions/:id", deleteQuestion);
+
+router.post("/questions/bulk", bulkCreateQuestions);
 
 router.post("/assign-questions", assignQuestionsValidator, assignQuestions);
 

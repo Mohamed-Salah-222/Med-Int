@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-/* Custom Theme */
+/* ========================================
+   CUSTOM THEME
+   ======================================== */
 @theme {
   --font-sans: "Inter", sans-serif;
   --font-serif: "Playfair Display", serif;
@@ -12,18 +14,35 @@
   --color-text-light: #6b6b6b;
   --color-border: #e8e8e6;
 }
-/* Lesson content styling - Enhanced */
+
+/* ========================================
+   LESSON CONTENT STYLING
+   ======================================== */
+
+/* Base Font */
+.lesson-content {
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+/* Headings */
 .lesson-content h2 {
   @apply text-3xl font-bold text-[#2C2C2C] mb-4 mt-8;
-  font-family: "Playfair Display", serif;
+  font-family: "Lexend", sans-serif;
 }
 
 .lesson-content h3 {
   @apply text-2xl font-semibold text-[#2C2C2C] mb-3 mt-6;
+  font-family: "Lexend", sans-serif;
 }
 
+.lesson-content h4 {
+  @apply text-xl font-semibold text-[#2C2C2C] mb-2 mt-4;
+  font-family: "Lexend", sans-serif;
+}
+
+/* Text Elements */
 .lesson-content p {
-  @apply text-lg text-[#6B6B6B] leading-relaxed mb-4;
+  @apply text-lg text-[#1A1A1A] leading-relaxed mb-4;
 }
 
 .lesson-content ul {
@@ -35,15 +54,15 @@
 }
 
 .lesson-content li {
-  @apply text-[#6B6B6B] leading-relaxed;
+  @apply text-[#1A1A1A] leading-relaxed;
 }
 
 .lesson-content strong {
-  @apply font-semibold text-[#2C2C2C];
+  @apply font-semibold text-[#1A1A1A];
 }
 
 .lesson-content em {
-  @apply italic text-[#6B6B6B];
+  @apply italic text-[#1A1A1A];
 }
 
 .lesson-content a {
@@ -51,20 +70,86 @@
 }
 
 .lesson-content blockquote {
-  @apply border-l-4 border-[#7A9D96] pl-4 italic text-[#6B6B6B] my-4;
+  @apply border-l-4 border-[#7A9D96] pl-4 italic text-[#1A1A1A] my-4;
 }
 
+/* Code Blocks */
 .lesson-content code {
-  @apply bg-[#FAFAF8] px-2 py-1 rounded text-sm font-mono text-[#2C2C2C] border border-[#E8E8E6];
+  @apply bg-[#F3F4F6] px-2 py-1 rounded text-sm font-mono text-[#1A1A1A] border border-[#E5E7EB];
 }
 
 .lesson-content pre {
-  @apply bg-[#2C2C2C] text-white p-4 rounded-lg overflow-x-auto my-4;
+  @apply bg-[#1F2937] text-white p-4 rounded-lg overflow-x-auto my-4;
 }
 
 .lesson-content pre code {
   @apply bg-transparent border-0 p-0;
 }
+
+/* Divider */
+.lesson-content hr {
+  @apply border-t-2 border-[#E8E8E6] my-6;
+}
+
+/* ========================================
+   GLOSSARY HIGHLIGHTS
+   ======================================== */
+
+/* Blue - Key Concepts */
+.lesson-content .highlight {
+  @apply font-semibold text-[#0EA5E9];
+}
+
+/* Red - Critical/Urgent */
+.lesson-content .highlight-critical {
+  @apply font-semibold text-[#EF4444];
+}
+
+/* Selection Styles */
+.lesson-content .highlight::selection {
+  @apply bg-[#0EA5E9]/30;
+}
+
+.lesson-content .highlight-critical::selection {
+  @apply bg-[#EF4444]/30;
+}
+
+/* ========================================
+   BADGES
+   ======================================== */
+
+.lesson-content .badge {
+  @apply inline-block bg-[#7A9D96]/10 text-[#7A9D96] px-3 py-1 rounded-full text-sm font-semibold;
+}
+
+/* ========================================
+   TABLES
+   ======================================== */
+
+.lesson-content table {
+  @apply w-full border-collapse;
+}
+
+.lesson-content th,
+.lesson-content td {
+  @apply p-4;
+}
+
+.lesson-content thead tr {
+  @apply bg-[#7A9D96] text-white;
+}
+
+.lesson-content tbody tr {
+  @apply border-b border-[#E8E8E6];
+}
+
+.lesson-content tbody tr:nth-child(even) {
+  @apply bg-[#FAFAF8];
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
 
 @media print {
   @page {

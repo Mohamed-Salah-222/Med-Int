@@ -80,10 +80,10 @@ export const adminAPI = {
   // Questions
   getAllQuestions: (type?: string) => api.get("/admin/questions", { params: type ? { type } : {} }),
   getQuestionById: (id: string) => api.get(`/admin/questions/${id}`),
-  createQuestion: (data: { questionText: string; options: string[]; correctAnswer: string; type: "quiz" | "test" | "exam"; explanation?: string; audioUrl?: string; difficulty?: "easy" | "medium" | "hard" }) => api.post("/admin/questions", data),
+  createQuestion: (data: any) => api.post("/admin/questions", data),
   updateQuestion: (id: string, data: any) => api.put(`/admin/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete(`/admin/questions/${id}`),
-
+  assignQuestions: (data: { targetId: string; targetType: "lesson" | "chapter" | "course"; questionIds: string[] }) => api.post("/admin/assign-questions", data),
   // Statistics - ADD THIS
   getStatistics: () => api.get("/admin/statistics"),
 
@@ -102,6 +102,10 @@ export const adminAPI = {
   getSettings: () => api.get("/admin/settings"),
   updateSettings: (data: any) => api.put("/admin/settings", data),
   testEmail: () => api.post("/admin/settings/test-email"),
+};
+
+export const glossaryAPI = {
+  getTerm: (term: string) => api.get(`/glossary/${term}`),
 };
 
 export default api;

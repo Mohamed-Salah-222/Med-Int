@@ -2,6 +2,7 @@ import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { Shield, LogOut, LayoutDashboard, User, Settings } from "lucide-react";
+import GlossaryTooltip from "./GlossaryTooltip";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -78,6 +79,7 @@ function Layout({ children, showAuth = true }: LayoutProps) {
 
       {/* Page Content */}
       {children}
+      <GlossaryTooltip />
     </div>
   );
 }

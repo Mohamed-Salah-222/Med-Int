@@ -293,12 +293,17 @@ export const assignQuestions = async (req: Request<{}, {}, AssignQuestionsBody>,
         return;
       }
 
-      lesson.quiz.questions = questionIds as any;
+      // ADD questions instead of replacing
+      const existingQuestionIds = lesson.quiz.questions.map((q: any) => q.toString());
+      const newQuestionIds = questionIds.filter((qId) => !existingQuestionIds.includes(qId));
+
+      lesson.quiz.questions = [...lesson.quiz.questions, ...newQuestionIds] as any;
       await lesson.save();
 
       res.status(200).json({
         message: "Questions assigned to lesson quiz successfully",
-        assigned: questionIds.length,
+        assigned: newQuestionIds.length,
+        total: lesson.quiz.questions.length,
       });
     } else if (targetType === "chapter") {
       const chapter = await Chapter.findById(targetId);
@@ -307,12 +312,17 @@ export const assignQuestions = async (req: Request<{}, {}, AssignQuestionsBody>,
         return;
       }
 
-      chapter.chapterTest.questions = questionIds as any;
+      // ADD questions instead of replacing
+      const existingQuestionIds = chapter.chapterTest.questions.map((q: any) => q.toString());
+      const newQuestionIds = questionIds.filter((qId) => !existingQuestionIds.includes(qId));
+
+      chapter.chapterTest.questions = [...chapter.chapterTest.questions, ...newQuestionIds] as any;
       await chapter.save();
 
       res.status(200).json({
         message: "Questions assigned to chapter test successfully",
-        assigned: questionIds.length,
+        assigned: newQuestionIds.length,
+        total: chapter.chapterTest.questions.length,
       });
     } else if (targetType === "course") {
       const course = await Course.findById(targetId);
@@ -321,12 +331,17 @@ export const assignQuestions = async (req: Request<{}, {}, AssignQuestionsBody>,
         return;
       }
 
-      course.finalExam.questions = questionIds as any;
+      // ADD questions instead of replacing
+      const existingQuestionIds = course.finalExam.questions.map((q: any) => q.toString());
+      const newQuestionIds = questionIds.filter((qId) => !existingQuestionIds.includes(qId));
+
+      course.finalExam.questions = [...course.finalExam.questions, ...newQuestionIds] as any;
       await course.save();
 
       res.status(200).json({
         message: "Questions assigned to final exam successfully",
-        assigned: questionIds.length,
+        assigned: newQuestionIds.length,
+        total: course.finalExam.questions.length,
       });
     }
   } catch (error) {
@@ -809,22 +824,71 @@ export const getAllQuestions = async (req: Request, res: Response, next: NextFun
   try {
     const { type } = req.query;
 
-    const filter = type ? { type } : {};
+    const filter: any = {};
+    if (type) {
+      filter.type = type;
+    }
 
     const questions = await Question.find(filter).sort({ createdAt: -1 });
 
+    const questionIds = questions.map((q) => q._id);
+
+    // Find where each question is assigned
+    const [lessons, chapters, courses] = await Promise.all([
+      Lesson.find({ "quiz.questions": { $in: questionIds } } as any).select("_id title lessonNumber quiz.questions"),
+      Chapter.find({ "chapterTest.questions": { $in: questionIds } } as any).select("_id title chapterNumber chapterTest.questions"),
+      Course.find({ "finalExam.questions": { $in: questionIds } } as any).select("_id title finalExam.questions"),
+    ]);
+
     res.status(200).json({
-      questions: questions.map((question) => ({
-        id: question._id,
-        questionText: question.questionText,
-        options: question.options,
-        correctAnswer: question.correctAnswer,
-        type: question.type,
-        difficulty: question.difficulty,
-        hasExplanation: !!question.explanation,
-        hasAudio: !!question.audioUrl,
-        createdAt: question.createdAt,
-      })),
+      total: questions.length,
+      questions: questions.map((q) => {
+        // Find assignment
+        let assignedTo = null;
+
+        const assignedLesson = lessons.find((l) => l.quiz.questions.some((qId: any) => qId.toString() === q._id.toString()));
+        if (assignedLesson) {
+          assignedTo = {
+            type: "lesson",
+            id: assignedLesson._id,
+            title: `Lesson ${assignedLesson.lessonNumber}: ${assignedLesson.title}`,
+          };
+        }
+
+        if (!assignedTo) {
+          const assignedChapter = chapters.find((c) => c.chapterTest.questions.some((qId: any) => qId.toString() === q._id.toString()));
+          if (assignedChapter) {
+            assignedTo = {
+              type: "chapter",
+              id: assignedChapter._id,
+              title: `Chapter ${assignedChapter.chapterNumber}: ${assignedChapter.title}`,
+            };
+          }
+        }
+
+        if (!assignedTo) {
+          const assignedCourse = courses.find((c) => c.finalExam.questions.some((qId: any) => qId.toString() === q._id.toString()));
+          if (assignedCourse) {
+            assignedTo = {
+              type: "course",
+              id: assignedCourse._id,
+              title: assignedCourse.title,
+            };
+          }
+        }
+
+        return {
+          id: q._id,
+          questionText: q.questionText,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          type: q.type,
+          hasExplanation: !!q.explanation,
+          hasAudio: !!q.audioUrl,
+          createdAt: q.createdAt,
+          assignedTo,
+        };
+      }),
     });
   } catch (error) {
     next(error);
@@ -1545,6 +1609,59 @@ export const testEmail = async (req: Request, res: Response, next: NextFunction)
     res.status(200).json({
       message: "Test email sent successfully (simulated)",
       success: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkCreateQuestions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { questions } = req.body; // Array of question objects
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      res.status(400).json({ message: "Questions array is required and cannot be empty" });
+      return;
+    }
+
+    // Validate each question
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+
+      if (!q.questionText || !q.options || !q.correctAnswer || !q.type) {
+        res.status(400).json({
+          message: `Question at index ${i} is missing required fields (questionText, options, correctAnswer, type)`,
+        });
+        return;
+      }
+
+      if (!Array.isArray(q.options) || q.options.length !== 4) {
+        res.status(400).json({
+          message: `Question at index ${i} must have exactly 4 options`,
+        });
+        return;
+      }
+
+      if (!q.options.includes(q.correctAnswer)) {
+        res.status(400).json({
+          message: `Question "${q.questionText}" has invalid correct answer. It must be one of the provided options.`,
+        });
+        return;
+      }
+    }
+
+    // Create all questions
+    const createdQuestions = await Question.insertMany(questions);
+
+    res.status(201).json({
+      message: `${createdQuestions.length} questions created successfully`,
+      count: createdQuestions.length,
+      questionIds: createdQuestions.map((q) => q._id.toString()),
+      questions: createdQuestions.map((q) => ({
+        id: q._id.toString(),
+        questionText: q.questionText,
+        type: q.type,
+      })),
     });
   } catch (error) {
     next(error);

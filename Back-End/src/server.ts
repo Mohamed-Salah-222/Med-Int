@@ -6,6 +6,8 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import courseRoutes from "./routes/courseRoutes";
+import glossaryRoutes from "./routes/glossaryRoutes";
+
 
 
 dotenv.config();
@@ -17,6 +19,8 @@ app.use(cors());
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/glossary", glossaryRoutes);
+
 
 //*Error handling middleWare
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
