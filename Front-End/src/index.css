@@ -97,7 +97,7 @@
 
 /* Blue - Key Concepts */
 .lesson-content .highlight {
-  @apply font-semibold text-[#0EA5E9];
+  @apply font-semibold text-[#856A00];
 }
 
 /* Red - Critical/Urgent */
@@ -183,4 +183,19 @@
   .print\:break-inside-avoid {
     break-inside: avoid;
   }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
 }

@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { courseAPI } from "../services/api";
 import { DetailedProgress } from "../types";
-import { BookOpen, CheckCircle, Clock, Award, TrendingUp, Target, ChevronRight } from "lucide-react";
+import { BookOpen, CheckCircle, Clock, Award, TrendingUp, Target, ChevronRight, Lock, LockOpen } from "lucide-react";
 import Layout from "../components/Layout";
 
 function Dashboard() {
   const navigate = useNavigate();
   const auth = useContext(AuthContext);
+
+  const isAdminOrSupervisor = auth?.user?.role === "Admin" || auth?.user?.role === "SuperVisor";
+
   const [progress, setProgress] = useState<DetailedProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -230,33 +233,44 @@ function Dashboard() {
 
                 {/* Lessons List */}
                 <div className="space-y-2 mb-4">
-                  {chapter.lessons.map((lesson) => (
-                    <div key={lesson.lessonId} className="flex items-center justify-between p-4 bg-[#FAFAF8] rounded-lg hover:bg-[#E8E8E6] cursor-pointer transition-colors" onClick={() => navigate(`/lesson/${lesson.lessonId}`)}>
-                      <div className="flex items-center space-x-3">
-                        {lesson.completed ? <CheckCircle className="w-6 h-6 text-green-600" strokeWidth={2} /> : <Clock className="w-6 h-6 text-[#6B6B6B]" strokeWidth={2} />}
-                        <div>
-                          <span className="font-semibold text-[#2C2C2C]">
-                            Lesson {lesson.lessonNumber}: {lesson.title}
-                          </span>
-                          {lesson.completed && lesson.attempts > 0 && (
-                            <div className="text-xs text-[#6B6B6B] mt-1">
-                              Completed in {lesson.attempts} {lesson.attempts === 1 ? "attempt" : "attempts"}
-                            </div>
-                          )}
+                  {chapter.lessons.map((lesson, lessonIndex) => {
+                    // Check if lesson is locked (but not for admin/supervisor)
+                    const isLocked = !isAdminOrSupervisor && !lesson.completed && lessonIndex > 0 && !chapter.lessons[lessonIndex - 1].completed;
+
+                    return (
+                      <div key={lesson.lessonId} className={`flex items-center justify-between p-4 rounded-lg transition-colors ${isLocked ? "bg-gray-100 cursor-not-allowed opacity-60" : "bg-[#FAFAF8] hover:bg-[#E8E8E6] cursor-pointer"}`} onClick={() => !isLocked && navigate(`/lesson/${lesson.lessonId}`)}>
+                        <div className="flex items-center space-x-3">
+                          {isLocked ? <Lock className="w-6 h-6 text-gray-400" strokeWidth={2} /> : lesson.completed ? <LockOpen className="w-6 h-6 text-green-600" strokeWidth={2} /> : <Clock className="w-6 h-6 text-[#6B6B6B]" strokeWidth={2} />}
+                          <div>
+                            <span className={`font-semibold ${isLocked ? "text-gray-400" : "text-[#2C2C2C]"}`}>
+                              Lesson {lesson.lessonNumber}: {lesson.title}
+                            </span>
+                            {lesson.completed && lesson.attempts > 0 && (
+                              <div className="text-xs text-[#6B6B6B] mt-1">
+                                Completed in {lesson.attempts} {lesson.attempts === 1 ? "attempt" : "attempts"}
+                              </div>
+                            )}
+                            {isLocked && <div className="text-xs text-red-600 mt-1">🔒 Complete previous lesson first</div>}
+                          </div>
                         </div>
+                        {lesson.completed && <div className="text-sm font-semibold text-green-600">{lesson.quizScore}/5 ✓</div>}
                       </div>
-                      {lesson.completed && <div className="text-sm font-semibold text-green-600">{lesson.quizScore}/5 ✓</div>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Chapter Test Button */}
-                {chapter.allLessonsCompleted && (
-                  <div className="pt-4 border-t border-[#E8E8E6]">
+                <div className="pt-4 border-t border-[#E8E8E6]">
+                  {!chapter.allLessonsCompleted && !isAdminOrSupervisor ? (
+                    <button className="w-full py-3 rounded-lg font-semibold bg-gray-200 text-gray-500 cursor-not-allowed flex items-center justify-center space-x-2" disabled>
+                      <Lock className="w-5 h-5" />
+                      <span>Complete all lessons to unlock Chapter Test</span>
+                    </button>
+                  ) : (
                     <button onClick={() => navigate(`/chapter/${chapter.chapterId}/test`)} className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center space-x-2 ${chapter.testPassed ? "bg-green-100 text-green-800 cursor-default" : "bg-[#7A9D96] text-white hover:bg-[#6A8D86] shadow-md"}`} disabled={chapter.testPassed}>
                       {chapter.testPassed ? (
                         <>
-                          <CheckCircle className="w-5 h-5" />
+                          <LockOpen className="w-5 h-5" />
                           <span>Chapter Test Passed ({chapter.testScore}%)</span>
                         </>
                       ) : (
@@ -267,36 +281,57 @@ function Dashboard() {
                         </>
                       )}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
           {/* Final Exam Section */}
-          {progress.chapters.every((c) => c.testPassed) && !progress.courseCompleted && (
-            <div className="mt-8 bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-2xl shadow-xl p-8">
-              <div className="flex items-center space-x-4 mb-4">
-                <Award className="w-12 h-12" strokeWidth={1.5} />
-                <div>
-                  <h3 className="text-3xl font-bold mb-2">Final Exam Ready!</h3>
-                  <p className="text-xl text-white/90">You've completed all chapters. Take the final exam to earn your certificates!</p>
+          <div className="mt-8">
+            {!progress.chapters.every((c) => c.testPassed) && !isAdminOrSupervisor ? (
+              <div className="bg-gray-100 border-2 border-gray-300 rounded-2xl shadow-md p-8">
+                <div className="flex items-center space-x-4 mb-4">
+                  <Lock className="w-12 h-12 text-gray-400" strokeWidth={1.5} />
+                  <div>
+                    <h3 className="text-3xl font-bold text-gray-600 mb-2">Final Exam Locked</h3>
+                    <p className="text-xl text-gray-500">Pass all chapter tests to unlock the final exam</p>
+                  </div>
                 </div>
-              </div>
-              {progress.finalExam.attempts.length > 0 && (
-                <div className="bg-white/10 rounded-lg p-4 mb-4">
-                  <p className="text-sm">
-                    Best Score: <span className="font-bold">{progress.finalExam.bestScore}%</span> | Attempts: <span className="font-bold">{progress.finalExam.attempts.length}</span>
+                <div className="bg-white rounded-lg p-4">
+                  <p className="text-sm text-gray-600">
+                    Progress:{" "}
+                    <span className="font-bold">
+                      {progress.chapters.filter((c) => c.testPassed).length}/{progress.chapters.length}
+                    </span>{" "}
+                    chapters completed
                   </p>
                 </div>
-              )}
-              <button onClick={() => navigate(`/course/${COURSE_ID}/exam`)} className="bg-white text-purple-600 px-8 py-3 rounded-lg font-bold text-lg hover:bg-gray-100 transition-all shadow-lg flex items-center space-x-2">
-                <Award className="w-6 h-6" />
-                <span>Take Final Exam</span>
-                <ChevronRight className="w-6 h-6" />
-              </button>
-            </div>
-          )}
+              </div>
+            ) : !progress.courseCompleted ? (
+              <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-2xl shadow-xl p-8">
+                <div className="flex items-center space-x-4 mb-4">
+                  <Award className="w-12 h-12" strokeWidth={1.5} />
+                  <div>
+                    <h3 className="text-3xl font-bold mb-2">Final Exam Ready!</h3>
+                    <p className="text-xl text-white/90">You've completed all chapters. Take the final exam to earn your certificates!</p>
+                  </div>
+                </div>
+                {progress.finalExam.attempts.length > 0 && (
+                  <div className="bg-white/10 rounded-lg p-4 mb-4">
+                    <p className="text-sm">
+                      Best Score: <span className="font-bold">{progress.finalExam.bestScore}%</span> | Attempts: <span className="font-bold">{progress.finalExam.attempts.length}</span>
+                    </p>
+                  </div>
+                )}
+                <button onClick={() => navigate(`/course/${COURSE_ID}/exam`)} className="bg-white text-purple-600 px-8 py-3 rounded-lg font-bold text-lg hover:bg-gray-100 transition-all shadow-lg flex items-center space-x-2">
+                  <Award className="w-6 h-6" />
+                  <span>Take Final Exam</span>
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </Layout>

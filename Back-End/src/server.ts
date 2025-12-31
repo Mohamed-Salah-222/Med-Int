@@ -7,8 +7,8 @@ import authRoutes from "./routes/authRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import courseRoutes from "./routes/courseRoutes";
 import glossaryRoutes from "./routes/glossaryRoutes";
-
-
+import accessRoutes from "./routes/accessRoutes";
+import chatbotRoutes from "./routes/chatbotRoutes";
 
 dotenv.config();
 const app = express();
@@ -20,7 +20,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/glossary", glossaryRoutes);
-
+app.use("/api/access", accessRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 //*Error handling middleWare
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

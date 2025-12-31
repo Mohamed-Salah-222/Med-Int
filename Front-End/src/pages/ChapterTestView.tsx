@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { courseAPI } from "../services/api";
-import { Question, QuizAnswer } from "../types";
-import { AlertCircle, CheckCircle, XCircle, Clock, Target, ArrowLeft, Trophy, BookOpen } from "lucide-react";
+import { Question, QuizAnswer, TestSession } from "../types";
+import { AlertCircle, CheckCircle, XCircle, Clock, Target, ArrowLeft, Trophy, BookOpen, AlertTriangle, ArrowRight } from "lucide-react";
 import Layout from "../components/Layout";
 
 interface TestSubmitResponse {
@@ -24,76 +24,202 @@ interface TestSubmitResponse {
 function ChapterTestView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [passingScore, setPassingScore] = useState(70);
-  const [timeLimit, setTimeLimit] = useState(20);
-  const [answers, setAnswers] = useState<{ [key: string]: string }>({});
+
+  // Initial states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [accessAllowed, setAccessAllowed] = useState(false);
+  const [accessLoading, setAccessLoading] = useState(true);
+
+  // Test states
+  const [testStarted, setTestStarted] = useState(false);
+  const [testSession, setTestSession] = useState<TestSession | null>(null);
+  const [currentAnswer, setCurrentAnswer] = useState<string>("");
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState<TestSubmitResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
 
+  // Timer
+  const [timeRemaining, setTimeRemaining] = useState(60);
+  const timerRef = useRef<number | null>(null);
+  const hasAutoSubmitted = useRef(false);
+
+  // Access check
   useEffect(() => {
-    const fetchTest = async () => {
+    const checkAccess = async () => {
       try {
-        const response = await courseAPI.getChapterTest(id!);
-        setQuestions(response.data.test.questions);
-        setPassingScore(response.data.test.passingScore);
-        setTimeLimit(response.data.test.timeLimit);
+        const response = await courseAPI.checkChapterTestAccess(id!);
+        setAccessAllowed(response.data.canAccess);
       } catch (error: any) {
-        console.error("Error fetching test:", error);
-        if (error.response?.status === 403) {
-          setError(error.response.data.message || "You cannot take this test yet");
-        } else {
-          setError("Failed to load test");
-        }
+        setAccessAllowed(false);
+        setError(error.response?.data?.message || "Access denied");
       } finally {
-        setLoading(false);
+        setAccessLoading(false);
       }
     };
-    fetchTest();
+
+    checkAccess();
   }, [id]);
 
-  const handleAnswerChange = (questionId: string, answer: string) => {
-    setAnswers({ ...answers, [questionId]: answer });
+  // Start timer when question changes
+  useEffect(() => {
+    if (testStarted && testSession && !submitted) {
+      setTimeRemaining(60);
+      hasAutoSubmitted.current = false;
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
+      timerRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            // Time's up - auto-submit current answer
+            if (!hasAutoSubmitted.current) {
+              hasAutoSubmitted.current = true;
+              handleNextQuestion();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+      };
+    }
+  }, [testSession?.currentQuestionIndex, testStarted, submitted]);
+
+  // Page leave protection
+  useEffect(() => {
+    if (testStarted && !submitted) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = "If you leave this page, your test will be marked as abandoned and you'll have to wait 3 hours to retake it.";
+        return e.returnValue;
+      };
+
+      const handleVisibilityChange = async () => {
+        if (document.hidden && testSession) {
+          // User left the tab - abandon test
+          try {
+            await courseAPI.abandonChapterTest(id!, testSession.sessionId);
+          } catch (error) {
+            console.error("Error abandoning test:", error);
+          }
+        }
+      };
+
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
+    }
+  }, [testStarted, submitted, testSession, id]);
+
+  const handleStartTest = async () => {
+    setLoading(true);
+    try {
+      const response = await courseAPI.startChapterTest(id!);
+
+      setTestSession({
+        sessionId: response.data.sessionId,
+        questions: response.data.test.questions,
+        answers: new Array(response.data.test.questions.length).fill(null),
+        currentQuestionIndex: 0,
+        timeRemaining: 60,
+        testStartTime: Date.now(),
+      });
+
+      setTestStarted(true);
+    } catch (error: any) {
+      console.error("Error starting test:", error);
+      if (error.response?.status === 403) {
+        setError(error.response.data.message || "Cannot start test");
+      } else {
+        setError("Failed to start test");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = async () => {
-    const allAnswered = questions.every((q) => answers[q._id]);
+  const handleNextQuestion = () => {
+    if (!testSession) return;
 
-    if (!allAnswered) {
-      alert("Please answer all questions before submitting.");
-      return;
+    // Save current answer
+    const newAnswers = [...testSession.answers];
+    newAnswers[testSession.currentQuestionIndex] = currentAnswer || null;
+
+    // Check if this is the last question
+    if (testSession.currentQuestionIndex === testSession.questions.length - 1) {
+      // Submit test
+      handleSubmitTest(newAnswers);
+    } else {
+      // Move to next question
+      setTestSession({
+        ...testSession,
+        answers: newAnswers,
+        currentQuestionIndex: testSession.currentQuestionIndex + 1,
+      });
+      setCurrentAnswer("");
+    }
+  };
+
+  const handleSubmitTest = async (finalAnswers: (string | null)[]) => {
+    if (!testSession) return;
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
     }
 
-    if (!confirm("Are you sure you want to submit your chapter test? You can only retake after 3 hours.")) {
-      return;
-    }
-
-    const formattedAnswers: QuizAnswer[] = questions.map((q) => ({
+    const formattedAnswers: QuizAnswer[] = testSession.questions.map((q, index) => ({
       questionId: q._id,
-      selectedAnswer: answers[q._id],
+      selectedAnswer: finalAnswers[index] || "",
     }));
 
     try {
-      const response = await courseAPI.submitChapterTest(id!, formattedAnswers);
+      const response = await courseAPI.submitChapterTest(id!, testSession.sessionId, formattedAnswers);
       setResults(response.data);
       setSubmitted(true);
     } catch (error: any) {
       console.error("Error submitting test:", error);
-      if (error.response?.status === 403) {
-        alert(error.response.data.message || "Test is on cooldown");
-      } else {
-        alert("Failed to submit test. Please try again.");
-      }
+      alert("Failed to submit test. Please try again.");
     }
   };
 
-  if (loading) {
+  // Loading states
+  if (accessLoading) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
-          <div className="text-xl text-[#6B6B6B]">Loading chapter test...</div>
+          <div className="text-xl text-[#6B6B6B]">Checking access...</div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!accessAllowed) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-[#2C2C2C] mb-4">Chapter Test Locked</h2>
+            <p className="text-[#6B6B6B] mb-6">{error}</p>
+            <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all">
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </Layout>
     );
@@ -116,6 +242,7 @@ function ChapterTestView() {
     );
   }
 
+  // Results view
   if (submitted && results) {
     return (
       <Layout>
@@ -132,7 +259,7 @@ function ChapterTestView() {
                 <p className="text-xl text-[#6B6B6B] mb-2">
                   You answered {results.correctCount} out of {results.totalQuestions} questions correctly
                 </p>
-                {results.passed ? <p className="text-lg text-green-700 font-semibold">Great work! You can now proceed to the next chapter.</p> : <p className="text-lg text-red-700 font-semibold">You need {passingScore}% to pass. Review the material and try again after 3 hours.</p>}
+                {results.passed ? <p className="text-lg text-green-700 font-semibold">Great work! You can now proceed to the next chapter.</p> : <p className="text-lg text-red-700 font-semibold">You need {results.passingScore}% to pass. Review the material and try again after 3 hours.</p>}
               </div>
             </div>
 
@@ -173,7 +300,6 @@ function ChapterTestView() {
               </div>
             </div>
 
-            {/* Action Button */}
             <div className="flex justify-center">
               <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-4 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all shadow-md flex items-center space-x-2">
                 <ArrowLeft className="w-5 h-5" />
@@ -186,98 +312,137 @@ function ChapterTestView() {
     );
   }
 
-  const answeredCount = Object.keys(answers).length;
-  const progressPercentage = (answeredCount / questions.length) * 100;
-
-  return (
-    <Layout>
-      <div className="min-h-screen bg-[#FAFAF8] py-12">
-        <div className="max-w-4xl mx-auto px-6">
-          {/* Header */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
+  // Test not started yet - show start screen
+  if (!testStarted) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-[#FAFAF8] py-12">
+          <div className="max-w-3xl mx-auto px-6">
+            <div className="bg-white rounded-2xl shadow-xl p-12 border border-[#E8E8E6]">
+              <div className="text-center mb-8">
+                <Target className="w-20 h-20 text-[#7A9D96] mx-auto mb-6" strokeWidth={1.5} />
+                <h1 className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
                   Chapter Test
                 </h1>
-                <p className="text-[#6B6B6B]">Answer all questions to complete this chapter</p>
+                <p className="text-xl text-[#6B6B6B]">Ready to test your knowledge?</p>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-[#7A9D96]">
-                  {answeredCount}/{questions.length}
-                </div>
-                <div className="text-sm text-[#6B6B6B]">Questions Answered</div>
-              </div>
-            </div>
 
-            {/* Progress Bar */}
-            <div className="w-full bg-[#E8E8E6] rounded-full h-2">
-              <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all duration-300" style={{ width: `${progressPercentage}%` }}></div>
-            </div>
-          </div>
-
-          {/* Test Instructions */}
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg p-6 mb-8">
-            <div className="flex items-start">
-              <AlertCircle className="w-6 h-6 text-yellow-600 mr-3 flex-shrink-0 mt-1" />
-              <div>
-                <p className="font-bold text-[#2C2C2C] mb-3">Chapter Test Instructions:</p>
-                <ul className="space-y-2 text-[#6B6B6B]">
-                  <li className="flex items-center">
-                    <CheckCircle className="w-4 h-4 text-yellow-600 mr-2" />
-                    Answer all {questions.length} questions
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="w-4 h-4 text-yellow-600 mr-2" />
-                    You need {passingScore}% to pass
-                  </li>
-                  <li className="flex items-center">
-                    <Clock className="w-4 h-4 text-yellow-600 mr-2" />
-                    Time limit: {timeLimit} minutes (not enforced yet)
-                  </li>
-                  <li className="flex items-center">
-                    <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
-                    You can only retry after 3 hours cooldown
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Questions */}
-          <div className="space-y-6">
-            {questions.map((question, index) => (
-              <div key={question._id} className="bg-white rounded-xl shadow-md p-6 border border-[#E8E8E6]">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-bold text-xl text-[#2C2C2C]">Question {index + 1}</span>
-                  {question.difficulty && <span className={`text-xs px-3 py-1 rounded-full font-semibold ${question.difficulty === "easy" ? "bg-green-100 text-green-800" : question.difficulty === "medium" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}>{question.difficulty.toUpperCase()}</span>}
-                </div>
-
-                <p className="text-lg text-[#2C2C2C] mb-6">{question.questionText}</p>
-
-                <div className="space-y-3">
-                  {question.options.map((option, optIndex) => (
-                    <label key={optIndex} className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${answers[question._id] === option ? "border-[#7A9D96] bg-[#7A9D96]/5 shadow-sm" : "border-[#E8E8E6] hover:border-[#7A9D96]/50 hover:bg-[#FAFAF8]"}`}>
-                      <input type="radio" name={question._id} value={option} checked={answers[question._id] === option} onChange={(e) => handleAnswerChange(question._id, e.target.value)} className="w-5 h-5 text-[#7A9D96] mr-4 cursor-pointer" />
-                      <span className="text-[#2C2C2C] font-medium">{option}</span>
-                    </label>
-                  ))}
+              {/* Critical Warning */}
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-lg p-6 mb-8">
+                <div className="flex items-start">
+                  <AlertTriangle className="w-7 h-7 text-red-600 mr-3 flex-shrink-0 mt-1" />
+                  <div>
+                    <p className="font-bold text-xl text-[#2C2C2C] mb-3">⚠️ IMPORTANT - READ CAREFULLY</p>
+                    <ul className="space-y-2 text-[#6B6B6B]">
+                      <li className="flex items-start">
+                        <Clock className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>
+                          <strong>1 minute per question</strong> - answer auto-submits when time expires
+                        </span>
+                      </li>
+                      <li className="flex items-start">
+                        <AlertTriangle className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>
+                          <strong>Do NOT leave this page</strong> - test will be marked as failed
+                        </span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>20 random questions from the chapter</span>
+                      </li>
+                      <li className="flex items-start">
+                        <Target className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>70% passing score required</span>
+                      </li>
+                      <li className="flex items-start">
+                        <Clock className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>
+                          <strong>3-hour cooldown</strong> if you fail or abandon
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {/* Submit Button */}
-          <div className="mt-8 flex justify-center">
-            <button onClick={handleSubmit} disabled={answeredCount !== questions.length} className="bg-[#7A9D96] text-white px-12 py-4 rounded-lg font-bold text-lg hover:bg-[#6A8D86] disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none flex items-center space-x-2">
-              <Target className="w-6 h-6" />
-              <span>Submit Chapter Test</span>
-            </button>
+              <div className="flex justify-center">
+                <button onClick={handleStartTest} disabled={loading} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-12 py-5 rounded-lg font-bold text-xl hover:shadow-2xl disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-3">
+                  <Target className="w-7 h-7" />
+                  <span>{loading ? "Starting..." : "Start Chapter Test"}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </Layout>
-  );
+      </Layout>
+    );
+  }
+
+  // Test in progress - show current question
+  if (testSession) {
+    const currentQuestion = testSession.questions[testSession.currentQuestionIndex];
+    const progress = ((testSession.currentQuestionIndex + 1) / testSession.questions.length) * 100;
+
+    return (
+      <Layout>
+        <div className="min-h-screen bg-[#FAFAF8] py-12">
+          <div className="max-w-3xl mx-auto px-6">
+            {/* Progress Header */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-[#E8E8E6]">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#2C2C2C]">
+                    Question {testSession.currentQuestionIndex + 1} of {testSession.questions.length}
+                  </h2>
+                  <p className="text-sm text-[#6B6B6B]">Chapter Test in Progress</p>
+                </div>
+                <div className="text-center">
+                  <div className={`text-4xl font-bold ${timeRemaining <= 10 ? "text-red-600" : "text-[#7A9D96]"}`}>{timeRemaining}s</div>
+                  <div className="text-xs text-[#6B6B6B]">Time Left</div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-[#E8E8E6] rounded-full h-2">
+                <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+              </div>
+            </div>
+
+            {/* Warning Banner */}
+            <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                <p className="text-sm text-red-800 font-semibold">Do not leave this page or your test will be marked as abandoned!</p>
+              </div>
+            </div>
+
+            {/* Question Card */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-[#E8E8E6]">
+              <p className="text-2xl text-[#2C2C2C] mb-8 leading-relaxed">{currentQuestion.questionText}</p>
+
+              <div className="space-y-4">
+                {currentQuestion.options.map((option, index) => (
+                  <label key={index} className={`flex items-center p-5 rounded-xl border-2 cursor-pointer transition-all ${currentAnswer === option ? "border-[#7A9D96] bg-[#7A9D96]/10 shadow-md" : "border-[#E8E8E6] hover:border-[#7A9D96]/50 hover:bg-[#FAFAF8]"}`}>
+                    <input type="radio" name="answer" value={option} checked={currentAnswer === option} onChange={(e) => setCurrentAnswer(e.target.value)} className="w-6 h-6 text-[#7A9D96] mr-4 cursor-pointer" />
+                    <span className="text-lg text-[#2C2C2C] font-medium">{option}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-8 flex justify-center">
+                <button onClick={handleNextQuestion} disabled={!currentAnswer} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-10 py-4 rounded-lg font-bold text-lg hover:shadow-lg disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-2">
+                  <span>{testSession.currentQuestionIndex === testSession.questions.length - 1 ? "Submit Test" : "Next Question"}</span>
+                  <ArrowRight className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  return null;
 }
 
 export default ChapterTestView;

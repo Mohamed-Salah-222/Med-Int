@@ -44,7 +44,7 @@ export const courseAPI = {
 
   getChapterTest: (chapterId: string) => api.get<{ test: { questions: Question[]; totalQuestions: number; passingScore: number; timeLimit: number } }>(`/courses/chapters/${chapterId}/test`),
 
-  submitChapterTest: (chapterId: string, answers: QuizAnswer[]) => api.post<TestSubmitResponse>(`/courses/chapters/${chapterId}/submit-test`, { answers }),
+  submitChapterTest: (chapterId: string, sessionId: string, answers: QuizAnswer[]) => api.post(`/courses/chapters/${chapterId}/test/submit`, { sessionId, answers }),
 
   getFinalExam: (courseId: string) => api.get<{ exam: { questions: Question[]; totalQuestions: number; passingScore: number; timeLimit: number } }>(`/courses/${courseId}/exam`),
 
@@ -53,6 +53,15 @@ export const courseAPI = {
   getCertificate: (courseId: string) => api.get<{ certificate: Certificate }>(`/courses/${courseId}/certificate`),
 
   getCertificates: (courseId: string) => api.get<{ certificates: { main: Certificate | null; hipaa: Certificate | null } }>(`/courses/${courseId}/certificates`),
+
+  checkLessonAccess: (lessonId: string) => api.get(`/access/lesson/${lessonId}`),
+
+  checkChapterTestAccess: (chapterId: string) => api.get(`/access/chapter-test/${chapterId}`),
+
+  checkFinalExamAccess: () => api.get("/access/final-exam"),
+
+  startChapterTest: (chapterId: string) => api.post(`/courses/chapters/${chapterId}/test/start`),
+  abandonChapterTest: (chapterId: string, sessionId: string) => api.post(`/courses/chapters/${chapterId}/test/abandon`, { sessionId }),
 };
 
 export const adminAPI = {
@@ -106,6 +115,11 @@ export const adminAPI = {
 
 export const glossaryAPI = {
   getTerm: (term: string) => api.get(`/glossary/${term}`),
+};
+
+export const chatbotAPI = {
+  getUsage: (lessonId: string) => api.get(`/chatbot/usage/${lessonId}`),
+  sendMessage: (lessonId: string, message: string, conversationHistory: any[]) => api.post("/chatbot/message", { lessonId, message, conversationHistory }),
 };
 
 export default api;

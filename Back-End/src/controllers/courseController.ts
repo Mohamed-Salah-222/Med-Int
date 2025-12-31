@@ -8,6 +8,7 @@ import Certificate from "../models/Certificate";
 import User from "../models/User";
 import { generateCertificateNumber, generateVerificationCode } from "../utils/certificateGenerator";
 import { sendCertificateEmail } from "../utils/emailService";
+import TestSession from "../models/TestSession";
 
 interface SubmitQuizBody {
   answers: {
@@ -101,7 +102,10 @@ export const getLesson = async (req: Request, res: Response, next: NextFunction)
   try {
     const { id } = req.params;
 
-    const lesson = await Lesson.findById(id).select("-quiz.questions");
+    const lesson = await Lesson.findById(id).populate({
+      path: "chapterId",
+      select: "title chapterNumber _id",
+    });
 
     if (!lesson) {
       res.status(404).json({ message: "Lesson not found" });
@@ -113,6 +117,14 @@ export const getLesson = async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
+    // Get all lessons in this chapter for sidebar
+    const chapterLessons = await Lesson.find({
+      chapterId: lesson.chapterId,
+      isPublished: true,
+    })
+      .select("_id title lessonNumber")
+      .sort({ lessonNumber: 1 });
+
     res.status(200).json({
       lesson: {
         id: lesson._id,
@@ -121,6 +133,12 @@ export const getLesson = async (req: Request, res: Response, next: NextFunction)
         content: lesson.content,
         contentType: lesson.contentType,
         audioUrl: lesson.audioUrl,
+      },
+      chapter: {
+        id: (lesson.chapterId as any)._id,
+        title: (lesson.chapterId as any).title,
+        chapterNumber: (lesson.chapterId as any).chapterNumber,
+        lessons: chapterLessons,
       },
     });
   } catch (error) {
@@ -336,6 +354,10 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    // ADD: Admin/SuperVisor bypass
+    const userRole = req.user?.role;
+    const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
+
     const chapter = await Chapter.findById(id);
 
     if (!chapter) {
@@ -348,47 +370,53 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // Check if user completed all lessons in this chapter
-    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
-    const chapterLessons = await Lesson.find({ chapterId: id });
-    const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
-    const allLessonsCompleted = chapterLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
+    // MODIFY: Only check requirements for regular users
+    if (!isAdminOrSupervisor) {
+      // Check if user completed all lessons in this chapter
+      const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+      const chapterLessons = await Lesson.find({ chapterId: id });
+      const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
+      const allLessonsCompleted = chapterLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
 
-    if (!allLessonsCompleted) {
-      res.status(403).json({
-        message: "You must complete all lessons in this chapter before taking the test",
-      });
-      return;
-    }
-
-    // Check cooldown
-    const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
-
-    if (cooldown) {
-      const cooldownHours = chapter.chapterTest.cooldownHours;
-      const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
-      const cooldownMs = cooldownHours * 60 * 60 * 1000;
-
-      if (timeSinceLastAttempt < cooldownMs) {
-        const remainingMs = cooldownMs - timeSinceLastAttempt;
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-
+      if (!allLessonsCompleted) {
         res.status(403).json({
-          message: "Test is on cooldown",
-          remainingMinutes,
-          canRetakeAt: new Date(Date.now() + remainingMs),
+          message: "You must complete all lessons in this chapter before taking the test",
         });
         return;
+      }
+
+      // Check cooldown
+      const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+      if (cooldown) {
+        const cooldownHours = chapter.chapterTest.cooldownHours;
+        const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
+        const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+        if (timeSinceLastAttempt < cooldownMs) {
+          const remainingMs = cooldownMs - timeSinceLastAttempt;
+          const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+          res.status(403).json({
+            message: "Test is on cooldown",
+            remainingMinutes,
+            canRetakeAt: new Date(Date.now() + remainingMs),
+          });
+          return;
+        }
       }
     }
 
     // Fetch questions
-    const questions = await Question.find({
+    const allQuestions = await Question.find({
       _id: { $in: chapter.chapterTest.questions },
     }).select("-correctAnswer -explanation");
 
-    // Randomize options
-    const randomizedQuestions = questions.map((q) => {
+    // Randomly select 20 questions (or all if less than 20)
+    const questionsToUse = allQuestions.length > 20 ? allQuestions.sort(() => Math.random() - 0.5).slice(0, 20) : allQuestions;
+
+    // Randomize options for each question
+    const randomizedQuestions = questionsToUse.map((q) => {
       const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
       return {
         _id: q._id,
@@ -414,16 +442,48 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
   }
 };
 
-export const submitChapterTest = async (req: Request<{ id: string }, {}, SubmitTestBody>, res: Response, next: NextFunction): Promise<void> => {
+export const submitChapterTest = async (req: Request<{ id: string }, {}, { sessionId: string; answers: any[] }>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // chapter ID
-    const { answers } = req.body;
+    const { sessionId, answers } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
+
+    // Verify session exists and belongs to user
+    const session = await TestSession.findOne({
+      _id: sessionId,
+      userId,
+      chapterId: id,
+    });
+
+    if (!session) {
+      res.status(404).json({ message: "Test session not found" });
+      return;
+    }
+
+    if (session.isSubmitted) {
+      res.status(400).json({ message: "Test already submitted" });
+      return;
+    }
+
+    if (session.isAbandoned) {
+      res.status(400).json({ message: "Test was abandoned" });
+      return;
+    }
+
+    if (!session.isActive) {
+      res.status(400).json({ message: "Test session expired" });
+      return;
+    }
+
+    // Mark session as submitted
+    session.isSubmitted = true;
+    session.isActive = false;
+    await session.save();
 
     const chapter = await Chapter.findById(id);
 
@@ -432,39 +492,10 @@ export const submitChapterTest = async (req: Request<{ id: string }, {}, SubmitT
       return;
     }
 
-    // Get progress BEFORE allowing submission
-    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
-
-    // Check cooldown BEFORE allowing submission
-    const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
-
-    if (cooldown) {
-      const cooldownHours = chapter.chapterTest.cooldownHours;
-      const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
-      const cooldownMs = cooldownHours * 60 * 60 * 1000;
-
-      if (timeSinceLastAttempt < cooldownMs) {
-        const remainingMs = cooldownMs - timeSinceLastAttempt;
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-
-        res.status(403).json({
-          message: "Test is on cooldown. You cannot submit another attempt yet.",
-          remainingMinutes,
-          canRetakeAt: new Date(Date.now() + remainingMs),
-        });
-        return;
-      }
-    }
-
-    // Fetch questions
+    // Fetch questions with correct answers
     const questions = await Question.find({
-      _id: { $in: chapter.chapterTest.questions },
+      _id: { $in: session.questions },
     });
-
-    if (questions.length === 0) {
-      res.status(400).json({ message: "No test questions found for this chapter" });
-      return;
-    }
 
     // Calculate score
     let correctCount = 0;
@@ -480,7 +511,7 @@ export const submitChapterTest = async (req: Request<{ id: string }, {}, SubmitT
         results.push({
           questionId: question._id,
           questionText: question.questionText,
-          selectedAnswer: answer.selectedAnswer,
+          selectedAnswer: answer.selectedAnswer || "No answer",
           correctAnswer: question.correctAnswer,
           isCorrect,
           explanation: question.explanation,
@@ -492,7 +523,9 @@ export const submitChapterTest = async (req: Request<{ id: string }, {}, SubmitT
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= chapter.chapterTest.passingScore;
 
-    // Record attempt
+    // Update progress
+    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
     progress.chapterTestAttempts.push({
       chapterId: id as any,
       attemptedAt: new Date(),
@@ -537,6 +570,10 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
+    // ADD: Admin/SuperVisor bypass
+    const userRole = req.user?.role;
+    const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
+
     const course = await Course.findById(id).populate({
       path: "chapters",
       populate: {
@@ -554,72 +591,75 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const progress = await getOrCreateProgress(userId, id);
-    const chapters = course.chapters as any[];
+    // MODIFY: Only check requirements for regular users
+    if (!isAdminOrSupervisor) {
+      const progress = await getOrCreateProgress(userId, id);
+      const chapters = course.chapters as any[];
 
-    // Check 1: All lessons must be completed
-    const allLessons: any[] = [];
-    chapters.forEach((chapter) => {
-      if (chapter.lessons) {
-        allLessons.push(...chapter.lessons);
-      }
-    });
-
-    const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
-
-    const allLessonsCompleted = allLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
-
-    if (!allLessonsCompleted) {
-      const incompleteLessons = allLessons.filter((lesson) => !completedLessonIds.includes(lesson._id.toString()));
-
-      res.status(403).json({
-        message: "You must complete all lessons before taking the final exam",
-        incompleteLessons: incompleteLessons.map((l) => ({
-          lessonNumber: l.lessonNumber,
-          title: l.title,
-        })),
+      // Check 1: All lessons must be completed
+      const allLessons: any[] = [];
+      chapters.forEach((chapter) => {
+        if (chapter.lessons) {
+          allLessons.push(...chapter.lessons);
+        }
       });
-      return;
-    }
 
-    // Check 2: All chapter tests must be passed
-    const passedChapterTests = progress.chapterTestAttempts.filter((attempt: any) => attempt.passed);
+      const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
 
-    const allChaptersPassed = chapters.every((chapter) => passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
+      const allLessonsCompleted = allLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
 
-    if (!allChaptersPassed) {
-      const incompleteChapters = chapters.filter((chapter) => !passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
-
-      res.status(403).json({
-        message: "You must pass all chapter tests before taking the final exam",
-        incompleteChapters: incompleteChapters.map((c: any) => ({
-          chapterNumber: c.chapterNumber,
-          title: c.title,
-        })),
-      });
-      return;
-    }
-
-    // Check cooldown (rest of your existing code stays the same)
-    if (progress.finalExamCooldown?.lastAttemptAt) {
-      const cooldownHours = course.finalExam.cooldownHours;
-      const timeSinceLastAttempt = Date.now() - new Date(progress.finalExamCooldown.lastAttemptAt).getTime();
-      const cooldownMs = cooldownHours * 60 * 60 * 1000;
-
-      if (timeSinceLastAttempt < cooldownMs) {
-        const remainingMs = cooldownMs - timeSinceLastAttempt;
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+      if (!allLessonsCompleted) {
+        const incompleteLessons = allLessons.filter((lesson) => !completedLessonIds.includes(lesson._id.toString()));
 
         res.status(403).json({
-          message: "Final exam is on cooldown",
-          remainingMinutes,
-          canRetakeAt: new Date(Date.now() + remainingMs),
+          message: "You must complete all lessons before taking the final exam",
+          incompleteLessons: incompleteLessons.map((l) => ({
+            lessonNumber: l.lessonNumber,
+            title: l.title,
+          })),
         });
         return;
       }
+
+      // Check 2: All chapter tests must be passed
+      const passedChapterTests = progress.chapterTestAttempts.filter((attempt: any) => attempt.passed);
+
+      const allChaptersPassed = chapters.every((chapter) => passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
+
+      if (!allChaptersPassed) {
+        const incompleteChapters = chapters.filter((chapter) => !passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
+
+        res.status(403).json({
+          message: "You must pass all chapter tests before taking the final exam",
+          incompleteChapters: incompleteChapters.map((c: any) => ({
+            chapterNumber: c.chapterNumber,
+            title: c.title,
+          })),
+        });
+        return;
+      }
+
+      // Check cooldown
+      if (progress.finalExamCooldown?.lastAttemptAt) {
+        const cooldownHours = course.finalExam.cooldownHours;
+        const timeSinceLastAttempt = Date.now() - new Date(progress.finalExamCooldown.lastAttemptAt).getTime();
+        const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+        if (timeSinceLastAttempt < cooldownMs) {
+          const remainingMs = cooldownMs - timeSinceLastAttempt;
+          const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+          res.status(403).json({
+            message: "Final exam is on cooldown",
+            remainingMinutes,
+            canRetakeAt: new Date(Date.now() + remainingMs),
+          });
+          return;
+        }
+      }
     }
 
-    // Fetch questions (rest stays the same)
+    // Fetch questions
     const questions = await Question.find({
       _id: { $in: course.finalExam.questions as any },
     }).select("-correctAnswer -explanation");
@@ -1106,6 +1146,200 @@ export const getUserCertificates = async (req: Request, res: Response, next: Nex
             }
           : null,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const startChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Admin/SuperVisor bypass cooldown check
+    const userRole = req.user?.role;
+    const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
+
+    const chapter = await Chapter.findById(id);
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    if (!chapter.isPublished) {
+      res.status(403).json({ message: "This chapter is not published yet" });
+      return;
+    }
+
+    // Check if there's an active session
+    const existingSession = await TestSession.findOne({
+      userId,
+      chapterId: id,
+      isActive: true,
+      isSubmitted: false,
+    });
+
+    if (existingSession) {
+      res.status(400).json({
+        message: "You already have an active test session",
+        sessionId: existingSession._id,
+      });
+      return;
+    }
+
+    // Only check cooldown for regular users
+    if (!isAdminOrSupervisor) {
+      const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+      // Check if user completed all lessons in this chapter
+      const chapterLessons = await Lesson.find({ chapterId: id });
+      const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
+      const allLessonsCompleted = chapterLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
+
+      if (!allLessonsCompleted) {
+        res.status(403).json({
+          message: "You must complete all lessons in this chapter before taking the test",
+        });
+        return;
+      }
+
+      // Check cooldown
+      const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+      if (cooldown) {
+        const cooldownHours = chapter.chapterTest.cooldownHours;
+        const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
+        const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+        if (timeSinceLastAttempt < cooldownMs) {
+          const remainingMs = cooldownMs - timeSinceLastAttempt;
+          const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+          res.status(403).json({
+            message: "Test is on cooldown",
+            remainingMinutes,
+            canRetakeAt: new Date(Date.now() + remainingMs),
+          });
+          return;
+        }
+      }
+    }
+
+    // Fetch all questions
+    const allQuestions = await Question.find({
+      _id: { $in: chapter.chapterTest.questions },
+    }).select("-correctAnswer -explanation");
+
+    // Randomly select 20 questions (or all if less than 20)
+    const questionsToUse = allQuestions.length > 20 ? allQuestions.sort(() => Math.random() - 0.5).slice(0, 20) : allQuestions;
+
+    // Randomize options for each question
+    const randomizedQuestions = questionsToUse.map((q) => {
+      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+      return {
+        _id: q._id,
+        questionText: q.questionText,
+        options: shuffledOptions,
+        type: q.type,
+        difficulty: q.difficulty,
+      };
+    });
+
+    // Create test session (40 minutes expiry: 20 questions * 1 min + 20 min buffer)
+    const session = await TestSession.create({
+      userId,
+      chapterId: id,
+      testType: "chapter",
+      questions: randomizedQuestions.map((q) => q._id),
+      answers: randomizedQuestions.map((q) => ({
+        questionId: q._id,
+        selectedAnswer: null,
+        timeSpent: 0,
+      })),
+      startedAt: new Date(),
+      expiresAt: new Date(Date.now() + 40 * 60 * 1000), // 40 minutes
+      isActive: true,
+    });
+
+    res.status(200).json({
+      sessionId: session._id,
+      test: {
+        chapterId: chapter._id,
+        chapterTitle: chapter.title,
+        questions: randomizedQuestions,
+        totalQuestions: randomizedQuestions.length,
+        passingScore: chapter.chapterTest.passingScore,
+        timePerQuestion: 60, // 60 seconds per question
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const abandonChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const { sessionId } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const session = await TestSession.findOne({
+      _id: sessionId,
+      userId,
+      chapterId: id,
+    });
+
+    if (!session) {
+      res.status(404).json({ message: "Test session not found" });
+      return;
+    }
+
+    if (session.isSubmitted) {
+      res.status(400).json({ message: "Test already submitted" });
+      return;
+    }
+
+    // Mark as abandoned
+    session.isAbandoned = true;
+    session.isActive = false;
+    await session.save();
+
+    const chapter = await Chapter.findById(id);
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    // Trigger cooldown
+    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+    const existingCooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+    if (existingCooldown) {
+      existingCooldown.lastAttemptAt = new Date();
+    } else {
+      progress.chapterTestCooldowns.push({
+        chapterId: id as any,
+        lastAttemptAt: new Date(),
+      } as any);
+    }
+
+    await progress.save();
+
+    res.status(200).json({
+      message: "Test abandoned. 3-hour cooldown activated.",
     });
   } catch (error) {
     next(error);

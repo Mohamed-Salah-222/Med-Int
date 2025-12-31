@@ -138,3 +138,56 @@ export interface Certificate {
   finalExamScore: number;
   issuedAt: string;
 }
+
+export interface TestSession {
+  sessionId: string;
+  questions: Question[];
+  answers: (string | null)[];
+  currentQuestionIndex: number;
+  timeRemaining: number;
+  testStartTime: number;
+}
+
+export interface StartTestResponse {
+  sessionId: string;
+  test: {
+    chapterId: string;
+    chapterTitle: string;
+    questions: Question[];
+    totalQuestions: number;
+    passingScore: number;
+    timePerQuestion: number;
+  };
+}
+export interface ChapterInfo {
+  id: string;
+  title: string;
+  chapterNumber: number;
+  lessons: {
+    _id: string;
+    title: string;
+    lessonNumber: number;
+  }[];
+}
+
+export interface LessonResponse {
+  lesson: Lesson;
+  chapter: ChapterInfo;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface ChapterInfo {
+  id: string;
+  title: string;
+  chapterNumber: number;
+  lessons: {
+    _id: string;
+    title: string;
+    lessonNumber: number;
+  }[];
+}

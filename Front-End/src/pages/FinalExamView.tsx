@@ -47,6 +47,10 @@ function FinalExamView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
+  const [accessAllowed, setAccessAllowed] = useState(false);
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [accessMessage, setAccessMessage] = useState("");
+
   useEffect(() => {
     const fetchExam = async () => {
       try {
@@ -67,6 +71,22 @@ function FinalExamView() {
     };
     fetchExam();
   }, [id]);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const response = await courseAPI.checkFinalExamAccess();
+        setAccessAllowed(response.data.canAccess);
+      } catch (error: any) {
+        setAccessAllowed(false);
+        setAccessMessage(error.response?.data?.message || "Access denied");
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+
+    checkAccess();
+  }, []);
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers({ ...answers, [questionId]: answer });
@@ -108,6 +128,37 @@ function FinalExamView() {
       <Layout>
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
           <div className="text-xl text-[#6B6B6B]">Loading final exam...</div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (accessLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="text-xl text-[#6B6B6B]">Checking access...</div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!accessAllowed) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+          <div className="max-w-md w-full bg-white rounded-2xl p-8 border-2 border-red-200 text-center shadow-lg">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-[#2C2C2C] mb-2">Final Exam Locked</h2>
+            <p className="text-[#6B6B6B] mb-6">{accessMessage || "You must pass all chapter tests before taking the final exam."}</p>
+            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all">
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </Layout>
     );
