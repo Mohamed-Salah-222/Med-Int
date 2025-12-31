@@ -6,7 +6,7 @@ import GlossaryTooltip from "./GlossaryTooltip";
 
 interface LayoutProps {
   children: React.ReactNode;
-  showAuth?: boolean; // Whether to show login/register or user menu
+  showAuth?: boolean;
 }
 
 function Layout({ children, showAuth = true }: LayoutProps) {
@@ -20,6 +20,10 @@ function Layout({ children, showAuth = true }: LayoutProps) {
     }
   };
 
+  const isStudent = auth?.user && auth.user.role === "Student";
+  const isAdmin = auth?.user && (auth.user.role === "Admin" || auth.user.role === "SuperVisor");
+  const isUser = auth?.user && auth.user.role === "User";
+  
   return (
     <div className="min-h-screen bg-[#FAFAF8]">
       {/* Navigation */}
@@ -45,20 +49,30 @@ function Layout({ children, showAuth = true }: LayoutProps) {
                 </>
               ) : (
                 <>
-                  {/* Dashboard Link */}
-                  <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span>Dashboard</span>
-                  </button>
+                  {/* Dashboard Link - Only for Students and Admins */}
+                  {!isUser && (
+                    <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>Dashboard</span>
+                    </button>
+                  )}
 
-                  {/* Profile Link */}
+                  {/* Course Link - For Users who aren't enrolled yet */}
+                  {isUser && (
+                    <button onClick={() => navigate("/course")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>View Course</span>
+                    </button>
+                  )}
+
+                  {/* Profile Link - Everyone */}
                   <button onClick={() => navigate("/profile")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
                     <User className="w-4 h-4" />
                     <span>Profile</span>
                   </button>
 
-                  {/* Admin Panel Link (only for Admin/SuperVisor) */}
-                  {(auth?.user?.role === "Admin" || auth?.user?.role === "SuperVisor") && (
+                  {/* Admin Panel Link - Only for Admin/SuperVisor */}
+                  {isAdmin && (
                     <button onClick={() => navigate("/admin")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
                       <Settings className="w-4 h-4" />
                       <span>Admin</span>

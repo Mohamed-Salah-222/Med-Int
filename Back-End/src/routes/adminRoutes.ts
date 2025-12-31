@@ -1,6 +1,6 @@
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware";
-import { isSuperVisor } from "../middleware/roleMiddleware";
+import { requireAdmin } from "../middleware/roleMiddleware";
 import {
   createCourse,
   getAllCourses,
@@ -27,24 +27,24 @@ import {
   getAllCertificates,
   getAllUsersProgress,
   getStatistics,
-  getAllUsers, // ADD
-  getUserById, // ADD
-  updateUserRole, // ADD
-  resetTestCooldown, // ADD
-  resetExamCooldown, // ADD
-  deleteUser, // ADD
-  resetUserProgress, // ADD
-  getSettings, // ADD
-  updateSettings, // ADD
+  getAllUsers,
+  getUserById,
+  updateUserRole,
+  resetTestCooldown,
+  resetExamCooldown,
+  deleteUser,
+  resetUserProgress,
+  getSettings,
+  updateSettings,
   bulkCreateQuestions,
-  testEmail, // ADD
+  testEmail,
 } from "../controllers/adminController";
 import { createCourseValidator, createChapterValidator, createLessonValidator, createQuestionValidator, assignQuestionsValidator } from "../validators/adminValidator";
 
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(isSuperVisor);
+router.use(requireAdmin); // Changed from isSuperVisor
 
 // Course routes
 router.get("/courses", getAllCourses);
@@ -85,17 +85,17 @@ router.get("/dashboard/users-progress", getAllUsersProgress);
 router.get("/statistics", getStatistics);
 
 // User management routes
-router.get("/users", getAllUsers); // ADD
-router.get("/users/:id", getUserById); // ADD
-router.put("/users/:id/role", updateUserRole); // ADD
-router.put("/users/:id/reset-test-cooldown", resetTestCooldown); // ADD
-router.put("/users/:id/reset-exam-cooldown", resetExamCooldown); // ADD
-router.delete("/users/:id", deleteUser); // ADD
-router.delete("/users/:id/progress", resetUserProgress); // ADD
+router.get("/users", getAllUsers);
+router.get("/users/:id", getUserById);
+router.put("/users/:id/role", updateUserRole);
+router.put("/users/:id/reset-test-cooldown", resetTestCooldown);
+router.put("/users/:id/reset-exam-cooldown", resetExamCooldown);
+router.delete("/users/:id", deleteUser);
+router.delete("/users/:id/progress", resetUserProgress);
 
 // Settings routes
-router.get("/settings", getSettings); // ADD
-router.put("/settings", updateSettings); // ADD
-router.post("/settings/test-email", testEmail); // ADD
+router.get("/settings", getSettings);
+router.put("/settings", updateSettings);
+router.post("/settings/test-email", testEmail);
 
 export default router;

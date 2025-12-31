@@ -77,11 +77,11 @@ function App() {
             }
           />
 
-          {/* Protected Routes (only logged-in users) */}
+          {/* Student Routes (require Student role or higher) */}
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireStudent={true}>
                 <Dashboard />
               </ProtectedRoute>
             }
@@ -89,7 +89,7 @@ function App() {
           <Route
             path="/lesson/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireStudent={true}>
                 <LessonView />
               </ProtectedRoute>
             }
@@ -97,7 +97,7 @@ function App() {
           <Route
             path="/lesson/:id/quiz"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireStudent={true}>
                 <QuizView />
               </ProtectedRoute>
             }
@@ -105,7 +105,7 @@ function App() {
           <Route
             path="/chapter/:id/test"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireStudent={true}>
                 <ChapterTestView />
               </ProtectedRoute>
             }
@@ -113,7 +113,7 @@ function App() {
           <Route
             path="/course/:id/exam"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireStudent={true}>
                 <FinalExamView />
               </ProtectedRoute>
             }
@@ -121,15 +121,17 @@ function App() {
           <Route
             path="/certificate/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireStudent={true}>
                 <CertificateView />
               </ProtectedRoute>
             }
           />
+
+          {/* Admin Routes (require Admin/SuperVisor role) */}
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminPanel />
               </ProtectedRoute>
             }
@@ -137,7 +139,7 @@ function App() {
           <Route
             path="/admin/courses"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminCourses />
               </ProtectedRoute>
             }
@@ -145,7 +147,7 @@ function App() {
           <Route
             path="/admin/chapters"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminChapters />
               </ProtectedRoute>
             }
@@ -153,7 +155,7 @@ function App() {
           <Route
             path="/admin/lessons"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminLessons />
               </ProtectedRoute>
             }
@@ -161,7 +163,7 @@ function App() {
           <Route
             path="/admin/questions"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminQuestions />
               </ProtectedRoute>
             }
@@ -169,7 +171,7 @@ function App() {
           <Route
             path="/admin/stats"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminStatistics />
               </ProtectedRoute>
             }
@@ -177,7 +179,7 @@ function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminUsers />
               </ProtectedRoute>
             }
@@ -185,7 +187,7 @@ function App() {
           <Route
             path="/admin/users/:id"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminUserDetail />
               </ProtectedRoute>
             }
@@ -193,7 +195,7 @@ function App() {
           <Route
             path="/admin/certificates"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminCertificates />
               </ProtectedRoute>
             }
@@ -201,7 +203,7 @@ function App() {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <AdminSettings />
               </ProtectedRoute>
             }

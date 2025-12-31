@@ -2,14 +2,16 @@ import express from "express";
 import { getCourse, getChapter, getLesson, getLessonQuiz, submitLessonQuiz, getUserProgress, getChapterTest, submitChapterTest, getFinalExam, submitFinalExam, getDetailedProgress, getUserCertificate, verifyCertificate, getUserCertificates, startChapterTest, abandonChapterTest } from "../controllers/courseController";
 import { submitQuizValidator, submitTestValidator, submitExamValidator } from "../validators/courseValidator";
 import authMiddleware from "../middleware/authMiddleware";
+import { requireStudent } from "../middleware/roleMiddleware";
 
 const router = express.Router();
 
 // PUBLIC route (no auth) - must be BEFORE authMiddleware
 router.get("/verify-certificate", verifyCertificate);
 
-// All other routes require authentication
+// All other routes require authentication AND Student role
 router.use(authMiddleware);
+router.use(requireStudent); // Add this single line to protect all routes below
 
 // Course routes
 router.get("/:id", getCourse);

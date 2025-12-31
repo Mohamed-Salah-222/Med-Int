@@ -2,7 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "Student" | "Admin" | "SuperVisor";
+  role: "User" | "Student" | "Admin" | "SuperVisor";
 }
 
 export interface LoginResponse {
