@@ -26,6 +26,8 @@ import AdminUserDetail from "./pages/AdminUserDetail";
 import AdminCertificates from "./pages/AdminCertificates";
 import AdminSettings from "./pages/AdminSettings";
 
+import AuthCallback from "./pages/AuthCallback";
+
 function App() {
   return (
     <AuthProvider>
@@ -208,6 +210,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/auth/callback" element={<AuthCallback />} />
         </Routes>
       </Router>
     </AuthProvider>

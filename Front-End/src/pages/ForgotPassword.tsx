@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { authAPI } from "../services/api";
 import { Mail, AlertCircle, CheckCircle, ArrowRight, Shield, KeyRound, Send } from "lucide-react";
 
@@ -8,6 +8,7 @@ function ForgotPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,29 +27,29 @@ function ForgotPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex">
+      <div className="min-h-screen flex flex-col lg:flex-row">
         {/* Success Screen */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#FAFAF8]">
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-[#FAFAF8]">
           <div className="w-full max-w-md text-center">
             <div className="mb-6 relative inline-block">
               <div className="absolute inset-0 bg-green-500 rounded-full blur-2xl opacity-30 animate-pulse"></div>
-              <div className="relative bg-green-500 w-20 h-20 rounded-full flex items-center justify-center">
+              <div className="relative bg-gradient-to-br from-green-500 to-green-600 w-20 h-20 rounded-full flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-10 h-10 text-white" strokeWidth={2} />
               </div>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Check Your Email
             </h1>
-            <p className="text-lg text-[#6B6B6B] mb-8">
+            <p className="text-base sm:text-lg text-[#6B6B6B] mb-8">
               We've sent a password reset link to <span className="font-semibold text-[#2C2C2C]">{email}</span>
             </p>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8">
+            <div className="bg-[#7A9D96]/10 border border-[#7A9D96]/30 rounded-xl p-4 mb-8 hover:bg-[#7A9D96]/15 transition-colors">
               <div className="flex items-start text-left">
-                <Mail className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
+                <Mail className="w-5 h-5 text-[#7A9D96] mr-3 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-[#2C2C2C]">
                   <p className="font-semibold mb-1">Didn't receive the email?</p>
-                  <ul className="space-y-1 text-blue-700">
+                  <ul className="space-y-1 text-[#6B6B6B]">
                     <li>• Check your spam or junk folder</li>
                     <li>• Make sure you entered the correct email</li>
                     <li>• Wait a few minutes and try again</li>
@@ -57,8 +58,8 @@ function ForgotPassword() {
               </div>
             </div>
 
-            <Link to="/login" className="inline-flex items-center space-x-2 text-[#7A9D96] font-semibold hover:text-[#6A8D86] transition-colors">
-              <ArrowRight className="w-4 h-4 rotate-180" />
+            <Link to="/login" className="inline-flex items-center space-x-2 text-[#7A9D96] font-semibold hover:text-[#6A8D86] hover:underline transition-colors group">
+              <ArrowRight className="w-4 h-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
               <span>Back to Login</span>
             </Link>
           </div>
@@ -66,26 +67,28 @@ function ForgotPassword() {
 
         {/* Right Side */}
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] items-center justify-center">
-          <Mail className="w-32 h-32 text-white/20" />
+          <Mail className="w-32 h-32 text-white/20 animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* LEFT SIDE - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#FAFAF8]">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-[#FAFAF8]">
         <div className="w-full max-w-md">
           {/* Logo/Header */}
           <div className="mb-8">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] w-12 h-12 rounded-xl flex items-center justify-center">
+            <div onClick={() => navigate("/")} className="flex items-center space-x-3 mb-6 cursor-pointer group w-fit">
+              <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] w-12 h-12 rounded-xl flex items-center justify-center group-hover:shadow-lg transition-all">
                 <Shield className="w-6 h-6 text-white" strokeWidth={2} />
               </div>
-              <span className="text-2xl font-bold text-[#2C2C2C]">Medical Interpreter Academy</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#2C2C2C] group-hover:text-[#7A9D96] transition-colors" style={{ fontFamily: "Lexend, sans-serif" }}>
+                Medical Interpreter Academy
+              </span>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Reset Password
             </h1>
             <p className="text-[#6B6B6B]">Enter your email and we'll send you a reset link</p>
@@ -103,12 +106,14 @@ function ForgotPassword() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-[#2C2C2C] mb-1.5">Email Address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2.5 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all text-sm" placeholder="you@example.com" required disabled={loading} autoFocus />
+              <label htmlFor="email" className="block text-sm font-semibold text-[#2C2C2C] mb-1.5">
+                Email Address
+              </label>
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2.5 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all text-sm" placeholder="you@example.com" required disabled={loading} autoFocus />
             </div>
 
             {/* Submit Button */}
-            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
+            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 cursor-pointer group">
               {loading ? (
                 <>
                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -119,9 +124,9 @@ function ForgotPassword() {
                 </>
               ) : (
                 <>
-                  <Send className="w-5 h-5" />
+                  <Send className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   <span>Send Reset Link</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
@@ -129,8 +134,8 @@ function ForgotPassword() {
 
           {/* Back to Login */}
           <div className="mt-6 text-center">
-            <Link to="/login" className="inline-flex items-center space-x-2 text-sm text-[#6B6B6B] hover:text-[#7A9D96] transition-colors">
-              <ArrowRight className="w-4 h-4 rotate-180" />
+            <Link to="/login" className="inline-flex items-center space-x-2 text-sm text-[#6B6B6B] hover:text-[#7A9D96] hover:underline transition-colors group">
+              <ArrowRight className="w-4 h-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
               <span>Back to Login</span>
             </Link>
           </div>
@@ -151,7 +156,7 @@ function ForgotPassword() {
           <p className="text-xl text-white/90 leading-relaxed mb-8">It happens to everyone. We'll send you a secure link to reset your password and get you back on track.</p>
 
           {/* Security Info */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 text-left">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 text-left hover:bg-white/15 transition-all cursor-default">
             <h3 className="text-white font-bold mb-3 flex items-center">
               <Shield className="w-5 h-5 mr-2" />
               Security First

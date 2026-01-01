@@ -76,52 +76,54 @@ function ResetPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex">
+      <div className="min-h-screen flex flex-col lg:flex-row">
         {/* Success Screen */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#FAFAF8]">
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-[#FAFAF8]">
           <div className="text-center">
             <div className="mb-6 relative inline-block">
               <div className="absolute inset-0 bg-green-500 rounded-full blur-2xl opacity-30 animate-pulse"></div>
-              <div className="relative bg-green-500 w-24 h-24 rounded-full flex items-center justify-center">
+              <div className="relative bg-gradient-to-br from-green-500 to-green-600 w-24 h-24 rounded-full flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-12 h-12 text-white" strokeWidth={2} />
               </div>
             </div>
-            <h1 className="text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
+            <h1 className="text-4xl sm:text-5xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
               Password Reset!
             </h1>
-            <p className="text-xl text-[#6B6B6B] mb-8">Your password has been successfully updated.</p>
+            <p className="text-lg sm:text-xl text-[#6B6B6B] mb-8">Your password has been successfully updated.</p>
             <div className="flex items-center justify-center text-[#7A9D96]">
               <svg className="animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span>Redirecting to login...</span>
+              <span className="font-semibold">Redirecting to login...</span>
             </div>
           </div>
         </div>
 
         {/* Right Side */}
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] items-center justify-center">
-          <CheckCircle className="w-32 h-32 text-white/20" />
+          <CheckCircle className="w-32 h-32 text-white/20 animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* LEFT SIDE - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#FAFAF8]">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-[#FAFAF8]">
         <div className="w-full max-w-md">
           {/* Logo/Header */}
           <div className="mb-8">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] w-12 h-12 rounded-xl flex items-center justify-center">
+            <div onClick={() => navigate("/")} className="flex items-center space-x-3 mb-6 cursor-pointer group w-fit">
+              <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] w-12 h-12 rounded-xl flex items-center justify-center group-hover:shadow-lg transition-all">
                 <Shield className="w-6 h-6 text-white" strokeWidth={2} />
               </div>
-              <span className="text-2xl font-bold text-[#2C2C2C]">Medical Interpreter Academy</span>
+              <span className="text-xl sm:text-2xl font-bold text-[#2C2C2C] group-hover:text-[#7A9D96] transition-colors" style={{ fontFamily: "Lexend, sans-serif" }}>
+                Medical Interpreter Academy
+              </span>
             </div>
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Create New Password
             </h1>
             <p className="text-[#6B6B6B]">Choose a strong password to secure your account</p>
@@ -139,10 +141,23 @@ function ResetPassword() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* New Password */}
             <div>
-              <label className="block text-sm font-semibold text-[#2C2C2C] mb-1.5">New Password</label>
+              <label htmlFor="password" className="block text-sm font-semibold text-[#2C2C2C] mb-1.5">
+                New Password
+              </label>
               <div className="relative">
-                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => handlePasswordChange(e.target.value)} className="w-full px-4 py-2.5 pr-10 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all text-sm" placeholder="••••••••" minLength={8} required disabled={loading || !token} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6B] hover:text-[#7A9D96]">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  className="w-full px-4 py-2.5 pr-10 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all text-sm"
+                  placeholder="••••••••"
+                  minLength={8}
+                  required
+                  disabled={loading || !token}
+                  autoFocus
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6B] hover:text-[#7A9D96] cursor-pointer transition-colors">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -160,10 +175,22 @@ function ResetPassword() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-semibold text-[#2C2C2C] mb-1.5">Confirm Password</label>
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-[#2C2C2C] mb-1.5">
+                Confirm Password
+              </label>
               <div className="relative">
-                <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-2.5 pr-10 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all text-sm" placeholder="••••••••" minLength={8} required disabled={loading || !token} />
-                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6B] hover:text-[#7A9D96]">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 pr-10 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all text-sm"
+                  placeholder="••••••••"
+                  minLength={8}
+                  required
+                  disabled={loading || !token}
+                />
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6B] hover:text-[#7A9D96] cursor-pointer transition-colors">
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -187,7 +214,7 @@ function ResetPassword() {
             </div>
 
             {/* Submit Button */}
-            <button type="submit" disabled={loading || !token || password !== confirmPassword} className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 mt-6">
+            <button type="submit" disabled={loading || !token || password !== confirmPassword} className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 mt-6 cursor-pointer group">
               {loading ? (
                 <>
                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -198,9 +225,9 @@ function ResetPassword() {
                 </>
               ) : (
                 <>
-                  <Lock className="w-5 h-5" />
+                  <Lock className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   <span>Reset Password</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
@@ -222,7 +249,7 @@ function ResetPassword() {
           <p className="text-xl text-white/90 leading-relaxed mb-8">Choose a strong, unique password to keep your account secure and continue your certification journey.</p>
 
           {/* Password Tips */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 text-left">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 text-left hover:bg-white/15 transition-all cursor-default">
             <h3 className="text-white font-bold mb-3 flex items-center">
               <Shield className="w-5 h-5 mr-2" />
               Password Best Practices

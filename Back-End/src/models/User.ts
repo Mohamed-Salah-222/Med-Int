@@ -16,6 +16,9 @@ export interface IUser extends Document {
   updatedAt: Date;
 
   comparePassword(UserPassword: string): Promise<boolean>;
+
+  googleId: String;
+  linkedinId: String;
 }
 
 const userSchema = new Schema<IUser>(
@@ -55,6 +58,16 @@ const userSchema = new Schema<IUser>(
     },
     passwordResetExpires: {
       type: Date,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows null values
+    },
+    linkedinId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
   },
   { timestamps: true }
