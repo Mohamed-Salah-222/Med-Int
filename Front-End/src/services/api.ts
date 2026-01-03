@@ -62,6 +62,11 @@ export const courseAPI = {
 
   startChapterTest: (chapterId: string) => api.post(`/courses/chapters/${chapterId}/test/start`),
   abandonChapterTest: (chapterId: string, sessionId: string) => api.post(`/courses/chapters/${chapterId}/test/abandon`, { sessionId }),
+
+  verifyCertificate: (certificateNumber: string, verificationCode: string) =>
+    api.get(`/courses/verify-certificate`, {
+      params: { certificateNumber, verificationCode },
+    }),
 };
 
 export const adminAPI = {

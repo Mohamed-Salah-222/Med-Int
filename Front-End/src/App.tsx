@@ -26,6 +26,8 @@ import AdminUserDetail from "./pages/AdminUserDetail";
 import AdminCertificates from "./pages/AdminCertificates";
 import AdminSettings from "./pages/AdminSettings";
 
+import VerifyCertificate from "./pages/VerifyCertificate";
+
 import AuthCallback from "./pages/AuthCallback";
 
 function App() {
@@ -211,6 +213,7 @@ function App() {
             }
           />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/verify-certificate" element={<VerifyCertificate />} />
         </Routes>
       </Router>
     </AuthProvider>
