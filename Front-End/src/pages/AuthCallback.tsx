@@ -16,7 +16,8 @@ function AuthCallback() {
       return;
     }
 
-    if (token && auth?.login) {
+    if (token && auth?.loginWithToken) {
+      // Changed from auth.login
       localStorage.setItem("token", token);
 
       fetch(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
@@ -26,10 +27,10 @@ function AuthCallback() {
       })
         .then((res) => res.json())
         .then((data) => {
-          auth.login(token, data);
+          auth.loginWithToken(token, data.user); // Changed from auth.login
 
           // Smart redirect based on user role
-          const userRole = data.role;
+          const userRole = data.user.role;
 
           if (userRole === "Admin" || userRole === "SuperVisor") {
             navigate("/admin");

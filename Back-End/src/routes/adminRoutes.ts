@@ -37,6 +37,7 @@ import {
   getSettings,
   updateSettings,
   bulkCreateQuestions,
+  getUserProgress,
   testEmail,
 } from "../controllers/adminController";
 import { createCourseValidator, createChapterValidator, createLessonValidator, createQuestionValidator, assignQuestionsValidator } from "../validators/adminValidator";
@@ -97,5 +98,8 @@ router.delete("/users/:id/progress", resetUserProgress);
 router.get("/settings", getSettings);
 router.put("/settings", updateSettings);
 router.post("/settings/test-email", testEmail);
+
+// In your admin routes file
+router.get("/users/:userId/progress/:courseId", authMiddleware, requireAdmin, getUserProgress);
 
 export default router;

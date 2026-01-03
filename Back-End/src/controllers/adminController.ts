@@ -1205,50 +1205,23 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
       filter.role = role;
     }
 
-    // Get users
+    // Get users - SIMPLE, NO PROGRESS CALCULATION
     const users = await User.find(filter).select("name email role isVerified createdAt").sort({ createdAt: -1 }).skip(skip).limit(limitNum);
 
     const total = await User.countDocuments(filter);
 
-    // Get progress for each user
-    const usersWithProgress = await Promise.all(
-      users.map(async (user) => {
-        const progress = await UserProgress.findOne({
-          userId: user._id,
-          courseId: process.env.COURSE_ID,
-        });
-
-        let completionPercentage = 0;
-        if (progress) {
-          const course = await Course.findById(process.env.COURSE_ID);
-          if (course && course.chapters && course.chapters.length > 0) {
-            // FIX: Cast to any to avoid TypeScript issues
-            const chapterIds = course.chapters.map((id) => id.toString());
-            const totalLessons = await Lesson.countDocuments({
-              chapterId: { $in: chapterIds as any },
-            });
-            if (totalLessons > 0) {
-              completionPercentage = Math.round((progress.completedLessons.length / totalLessons) * 100);
-            }
-          }
-        }
-
-        return {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isVerified: user.isVerified,
-          createdAt: user.createdAt,
-          completionPercentage,
-          courseCompleted: progress?.courseCompleted || false,
-          certificateIssued: progress?.certificateIssued || false,
-        };
-      })
-    );
+    // Return simple user data
+    const usersData = users.map((user) => ({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+    }));
 
     res.status(200).json({
-      users: usersWithProgress,
+      users: usersData,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -1663,6 +1636,150 @@ export const bulkCreateQuestions = async (req: Request, res: Response, next: Nex
         type: q.type,
       })),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { userId, courseId } = req.params;
+
+    // Get user progress
+    const progress = await UserProgress.findOne({ userId, courseId });
+
+    // Get course with chapters and lessons
+    const course = await Course.findById(courseId).populate({
+      path: "chapters",
+      options: { sort: { chapterNumber: 1 } },
+    });
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Get all chapters
+    const chapters = await Chapter.find({ courseId }).sort({ chapterNumber: 1 });
+
+    // Build detailed progress for each chapter
+    const detailedChapters = await Promise.all(
+      chapters.map(async (chapter) => {
+        // Get all lessons for this chapter
+        const lessons = await Lesson.find({ chapterId: chapter._id }).sort({ lessonNumber: 1 });
+
+        // Map lessons with completion status
+        const lessonProgress = lessons.map((lesson) => {
+          const completed = progress?.completedLessons.find((cl) => cl.lessonId.toString() === lesson._id.toString());
+
+          return {
+            lessonId: lesson._id.toString(),
+            lessonNumber: lesson.lessonNumber,
+            title: lesson.title,
+            completed: !!completed,
+            quizScore: completed?.quizScore || 0,
+            attempts: completed?.attempts || 0,
+            completedAt: completed?.completedAt?.toISOString() || null,
+          };
+        });
+
+        // Check if all lessons are completed
+        const allLessonsCompleted = lessons.length > 0 && lessonProgress.every((l) => l.completed);
+
+        // Get chapter test info
+        const testAttempts = progress?.chapterTestAttempts.filter((attempt) => attempt.chapterId.toString() === chapter._id.toString());
+        const passedAttempt = testAttempts?.find((attempt) => attempt.passed);
+
+        return {
+          chapterId: chapter._id.toString(),
+          chapterNumber: chapter.chapterNumber,
+          title: chapter.title,
+          totalLessons: lessons.length,
+          completedLessons: lessonProgress.filter((l) => l.completed).length,
+          allLessonsCompleted,
+          testTaken: (testAttempts?.length || 0) > 0,
+          testPassed: !!passedAttempt,
+          testScore: passedAttempt?.score || null,
+          testAttemptedAt: passedAttempt?.attemptedAt?.toISOString() || null,
+          lessons: lessonProgress,
+        };
+      })
+    );
+
+    // Determine current chapter and lesson
+    let currentChapter = 1;
+    let currentLesson = 1;
+
+    if (progress) {
+      currentChapter = progress.currentChapterNumber || 1;
+      currentLesson = progress.currentLessonNumber || 1;
+    }
+
+    // Determine next action
+    let nextAction = null;
+
+    if (progress?.courseCompleted) {
+      nextAction = {
+        type: "completed",
+        message: "Course completed! View your certificates.",
+      };
+    } else {
+      // Find first incomplete chapter
+      const incompleteChapter = detailedChapters.find((ch) => !ch.testPassed);
+
+      if (incompleteChapter) {
+        // Find first incomplete lesson in this chapter
+        const incompleteLesson = incompleteChapter.lessons.find((l) => !l.completed);
+
+        if (incompleteLesson) {
+          nextAction = {
+            type: "lesson",
+            chapterNumber: incompleteChapter.chapterNumber,
+            lessonNumber: incompleteLesson.lessonNumber,
+            title: incompleteLesson.title,
+            message: `Continue with Chapter ${incompleteChapter.chapterNumber}, Lesson ${incompleteLesson.lessonNumber}: ${incompleteLesson.title}`,
+          };
+        } else if (incompleteChapter.allLessonsCompleted && !incompleteChapter.testPassed) {
+          nextAction = {
+            type: "chapter-test",
+            chapterNumber: incompleteChapter.chapterNumber,
+            message: `Take the test for Chapter ${incompleteChapter.chapterNumber}: ${incompleteChapter.title}`,
+          };
+        }
+      } else if (detailedChapters.every((ch) => ch.testPassed)) {
+        // All chapters passed, ready for final exam
+        nextAction = {
+          type: "final-exam",
+          message: "You've completed all chapters! Take the final exam to earn your certificates.",
+        };
+      }
+    }
+
+    // Final exam info
+    const finalExamAttempts = progress?.finalExamAttempts || [];
+    const passedExam = finalExamAttempts.find((attempt) => attempt.passed);
+    const bestScore = finalExamAttempts.length > 0 ? Math.max(...finalExamAttempts.map((a) => a.score)) : 0;
+
+    const detailedProgress = {
+      currentChapter,
+      currentLesson,
+      courseCompleted: progress?.courseCompleted || false,
+      certificateIssued: progress?.certificateIssued || false,
+      completedAt: progress?.completedAt?.toISOString() || null,
+      chapters: detailedChapters,
+      finalExam: {
+        attempts: finalExamAttempts.map((attempt) => ({
+          attemptedAt: attempt.attemptedAt.toISOString(),
+          score: attempt.score,
+          passed: attempt.passed,
+        })),
+        passed: !!passedExam,
+        bestScore,
+      },
+      nextAction,
+    };
+
+    res.status(200).json({ progress: detailedProgress });
   } catch (error) {
     next(error);
   }

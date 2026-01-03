@@ -133,17 +133,17 @@ function GlossaryTooltip() {
 
   return (
     <div
-      className="fixed z-[9999] w-72 p-4 bg-white rounded-lg shadow-2xl border-2 border-[#0EA5E9]"
+      className="fixed z-[9999] w-72 p-4 bg-white rounded-lg shadow-2xl border-2 border-[#E76F51]"
       style={{
         left: `${tooltip.x - 144}px`,
         top: `${tooltip.y + 10}px`,
       }}
     >
-      <div className="text-sm font-bold text-[#0EA5E9] mb-2 capitalize">{tooltip.term}</div>
+      <div className="text-sm font-bold text-[#E76F51] mb-2 capitalize">{tooltip.term}</div>
       <div className="text-sm text-[#2C2C2C] leading-relaxed">{tooltip.explanation}</div>
       {/* Arrow pointing up */}
       <div
-        className="absolute w-3 h-3 bg-white border-l-2 border-t-2 border-[#0EA5E9] transform rotate-45"
+        className="absolute w-3 h-3 bg-white border-l-2 border-t-2 border-[#E76F51] transform rotate-45"
         style={{
           top: "-7px",
           left: "50%",

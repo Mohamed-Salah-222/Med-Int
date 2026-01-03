@@ -77,7 +77,10 @@ function AdminStatistics() {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
-          <div className="text-xl text-[#6B6B6B]">Loading statistics...</div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#7A9D96] mx-auto mb-4"></div>
+            <p className="text-xl text-[#6B6B6B] font-semibold">Loading statistics...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -113,38 +116,39 @@ function AdminStatistics() {
     { name: "Exam", value: stats.questions.exam },
   ];
 
-  const COLORS = ["#3B82F6", "#8B5CF6", "#F97316"];
+  // Warm, professional colors matching your theme
+  const CHART_COLORS = ["#7A9D96", "#E76F51", "#F4A261"];
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[#FAFAF8] py-12">
-        <div className="max-w-7xl mx-auto px-6">
+      <div className="bg-[#FAFAF8] py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
               Statistics & Analytics
             </h1>
             <p className="text-[#6B6B6B]">Platform performance and user activity insights</p>
           </div>
 
-          {/* Overview Cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+          {/* Overview Cards - WARM THEME */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+            <div className="bg-white rounded-xl p-5 sm:p-6 border-2 border-[#E8E8E6] hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-6 h-6 text-blue-600" strokeWidth={2} />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2 w-fit">
+                  <Users className="w-6 h-6 text-[#7A9D96]" strokeWidth={2} />
                 </div>
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <TrendingUp className="w-5 h-5 text-[#7A9D96]" />
               </div>
               <div className="text-3xl font-bold text-[#2C2C2C] mb-1">{stats.overview.totalUsers}</div>
               <div className="text-sm text-[#6B6B6B]">Total Users</div>
-              <div className="text-xs text-green-600 mt-2">+{stats.recentActivity.newUsers} this month</div>
+              <div className="text-xs text-[#7A9D96] mt-2 font-semibold">+{stats.recentActivity.newUsers} this month</div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+            <div className="bg-white rounded-xl p-5 sm:p-6 border-2 border-[#E8E8E6] hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Award className="w-6 h-6 text-purple-600" strokeWidth={2} />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2 w-fit">
+                  <Award className="w-6 h-6 text-[#7A9D96]" strokeWidth={2} />
                 </div>
               </div>
               <div className="text-3xl font-bold text-[#2C2C2C] mb-1">{stats.overview.certificatesIssued}</div>
@@ -152,10 +156,10 @@ function AdminStatistics() {
               <div className="text-xs text-[#6B6B6B] mt-2">{stats.overview.completedCourses} courses completed</div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+            <div className="bg-white rounded-xl p-5 sm:p-6 border-2 border-[#E8E8E6] hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <HelpCircle className="w-6 h-6 text-green-600" strokeWidth={2} />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2 w-fit">
+                  <HelpCircle className="w-6 h-6 text-[#7A9D96]" strokeWidth={2} />
                 </div>
               </div>
               <div className="text-3xl font-bold text-[#2C2C2C] mb-1">{stats.overview.totalQuestions}</div>
@@ -165,10 +169,10 @@ function AdminStatistics() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+            <div className="bg-white rounded-xl p-5 sm:p-6 border-2 border-[#E8E8E6] hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-orange-600" strokeWidth={2} />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2 w-fit">
+                  <Activity className="w-6 h-6 text-[#7A9D96]" strokeWidth={2} />
                 </div>
               </div>
               <div className="text-3xl font-bold text-[#2C2C2C] mb-1">{stats.attempts.quizzes.total + stats.attempts.tests.total + stats.attempts.exams.total}</div>
@@ -177,35 +181,41 @@ function AdminStatistics() {
             </div>
           </div>
 
-          {/* Content Stats */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] rounded-xl p-6 text-white">
-              <BookOpen className="w-8 h-8 mb-4" strokeWidth={2} />
+          {/* Content Stats - WARM GRADIENT */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+            <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] rounded-xl p-6 text-white shadow-md hover:shadow-lg transition-shadow">
+              <div className="bg-white/10 rounded-lg p-2 w-fit mb-4">
+                <BookOpen className="w-6 h-6" strokeWidth={2} />
+              </div>
               <div className="text-3xl font-bold mb-1">{stats.overview.totalCourses}</div>
               <div className="text-sm opacity-90">Active Courses</div>
             </div>
 
-            <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] rounded-xl p-6 text-white">
-              <Layers className="w-8 h-8 mb-4" strokeWidth={2} />
+            <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] rounded-xl p-6 text-white shadow-md hover:shadow-lg transition-shadow">
+              <div className="bg-white/10 rounded-lg p-2 w-fit mb-4">
+                <Layers className="w-6 h-6" strokeWidth={2} />
+              </div>
               <div className="text-3xl font-bold mb-1">{stats.overview.totalChapters}</div>
               <div className="text-sm opacity-90">Total Chapters</div>
             </div>
 
-            <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] rounded-xl p-6 text-white">
-              <FileText className="w-8 h-8 mb-4" strokeWidth={2} />
+            <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] rounded-xl p-6 text-white shadow-md hover:shadow-lg transition-shadow">
+              <div className="bg-white/10 rounded-lg p-2 w-fit mb-4">
+                <FileText className="w-6 h-6" strokeWidth={2} />
+              </div>
               <div className="text-3xl font-bold mb-1">{stats.overview.totalLessons}</div>
               <div className="text-sm opacity-90">Total Lessons</div>
             </div>
           </div>
 
-          {/* Attempts Statistics */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {/* Attempts Statistics - REFINED */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
             {/* Quizzes */}
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+            <div className="bg-white rounded-xl p-6 border border-[#E8E8E6] shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#2C2C2C]">Quiz Performance</h3>
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Target className="w-5 h-5 text-blue-600" />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2">
+                  <Target className="w-5 h-5 text-[#7A9D96]" />
                 </div>
               </div>
               <div className="space-y-3">
@@ -215,7 +225,7 @@ function AdminStatistics() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#6B6B6B]">Passed</span>
-                  <span className="text-lg font-bold text-green-600 flex items-center">
+                  <span className="text-lg font-bold text-[#7A9D96] flex items-center">
                     <CheckCircle className="w-4 h-4 mr-1" />
                     {stats.attempts.quizzes.passed}
                   </span>
@@ -229,19 +239,19 @@ function AdminStatistics() {
                     <span className="text-xs text-[#6B6B6B]">Pass Rate</span>
                     <span className="text-xs font-bold text-[#2C2C2C]">{stats.attempts.quizzes.passRate}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${stats.attempts.quizzes.passRate}%` }}></div>
+                  <div className="w-full bg-[#E8E8E6] rounded-full h-2">
+                    <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all" style={{ width: `${stats.attempts.quizzes.passRate}%` }}></div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Tests */}
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+            <div className="bg-white rounded-xl p-6 border border-[#E8E8E6] shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#2C2C2C]">Test Performance</h3>
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Target className="w-5 h-5 text-purple-600" />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2">
+                  <Target className="w-5 h-5 text-[#7A9D96]" />
                 </div>
               </div>
               <div className="space-y-3">
@@ -251,7 +261,7 @@ function AdminStatistics() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#6B6B6B]">Passed</span>
-                  <span className="text-lg font-bold text-green-600 flex items-center">
+                  <span className="text-lg font-bold text-[#7A9D96] flex items-center">
                     <CheckCircle className="w-4 h-4 mr-1" />
                     {stats.attempts.tests.passed}
                   </span>
@@ -265,19 +275,19 @@ function AdminStatistics() {
                     <span className="text-xs text-[#6B6B6B]">Pass Rate</span>
                     <span className="text-xs font-bold text-[#2C2C2C]">{stats.attempts.tests.passRate}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${stats.attempts.tests.passRate}%` }}></div>
+                  <div className="w-full bg-[#E8E8E6] rounded-full h-2">
+                    <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all" style={{ width: `${stats.attempts.tests.passRate}%` }}></div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Exams */}
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
+            <div className="bg-white rounded-xl p-6 border border-[#E8E8E6] shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#2C2C2C]">Exam Performance</h3>
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Target className="w-5 h-5 text-orange-600" />
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2">
+                  <Target className="w-5 h-5 text-[#7A9D96]" />
                 </div>
               </div>
               <div className="space-y-3">
@@ -287,7 +297,7 @@ function AdminStatistics() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#6B6B6B]">Passed</span>
-                  <span className="text-lg font-bold text-green-600 flex items-center">
+                  <span className="text-lg font-bold text-[#7A9D96] flex items-center">
                     <CheckCircle className="w-4 h-4 mr-1" />
                     {stats.attempts.exams.passed}
                   </span>
@@ -301,69 +311,96 @@ function AdminStatistics() {
                     <span className="text-xs text-[#6B6B6B]">Pass Rate</span>
                     <span className="text-xs font-bold text-[#2C2C2C]">{stats.attempts.exams.passRate}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-orange-600 h-2 rounded-full" style={{ width: `${stats.attempts.exams.passRate}%` }}></div>
+                  <div className="w-full bg-[#E8E8E6] rounded-full h-2">
+                    <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all" style={{ width: `${stats.attempts.exams.passRate}%` }}></div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Charts */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Charts - REFINED */}
+          <div className="grid lg:grid-cols-2 gap-6 mb-8">
             {/* Daily Activity Line Chart */}
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
-              <div className="flex items-center mb-4">
-                <Calendar className="w-5 h-5 text-[#7A9D96] mr-2" />
+            <div className="bg-white rounded-xl p-6 border border-[#E8E8E6] shadow-sm">
+              <div className="flex items-center mb-6">
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2 mr-3">
+                  <Calendar className="w-5 h-5 text-[#7A9D96]" />
+                </div>
                 <h3 className="text-lg font-bold text-[#2C2C2C]">Activity (Last 7 Days)</h3>
               </div>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={dailyActivityData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E6" />
+                  <XAxis dataKey="date" stroke="#6B6B6B" style={{ fontSize: "12px" }} />
+                  <YAxis stroke="#6B6B6B" style={{ fontSize: "12px" }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #E8E8E6",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    }}
+                  />
                   <Legend />
-                  <Line type="monotone" dataKey="Quizzes" stroke="#3B82F6" strokeWidth={2} />
-                  <Line type="monotone" dataKey="Tests" stroke="#8B5CF6" strokeWidth={2} />
-                  <Line type="monotone" dataKey="Exams" stroke="#F97316" strokeWidth={2} />
+                  <Line type="monotone" dataKey="Quizzes" stroke="#7A9D96" strokeWidth={2} dot={{ fill: "#7A9D96" }} />
+                  <Line type="monotone" dataKey="Tests" stroke="#E76F51" strokeWidth={2} dot={{ fill: "#E76F51" }} />
+                  <Line type="monotone" dataKey="Exams" stroke="#F4A261" strokeWidth={2} dot={{ fill: "#F4A261" }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
             {/* Pass Rate Bar Chart */}
-            <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
-              <div className="flex items-center mb-4">
-                <Target className="w-5 h-5 text-[#7A9D96] mr-2" />
+            <div className="bg-white rounded-xl p-6 border border-[#E8E8E6] shadow-sm">
+              <div className="flex items-center mb-6">
+                <div className="bg-[#7A9D96]/10 rounded-lg p-2 mr-3">
+                  <Target className="w-5 h-5 text-[#7A9D96]" />
+                </div>
                 <h3 className="text-lg font-bold text-[#2C2C2C]">Pass Rates Comparison</h3>
               </div>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={passRateData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E6" />
+                  <XAxis dataKey="name" stroke="#6B6B6B" style={{ fontSize: "12px" }} />
+                  <YAxis stroke="#6B6B6B" style={{ fontSize: "12px" }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #E8E8E6",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    }}
+                  />
                   <Legend />
-                  <Bar dataKey="rate" fill="#7A9D96" />
+                  <Bar dataKey="rate" fill="#7A9D96" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Questions Distribution */}
-          <div className="bg-white rounded-xl p-6 border-2 border-[#E8E8E6]">
-            <div className="flex items-center mb-4">
-              <HelpCircle className="w-5 h-5 text-[#7A9D96] mr-2" />
+          {/* Questions Distribution - REFINED */}
+          <div className="bg-white rounded-xl p-6 border border-[#E8E8E6] shadow-sm">
+            <div className="flex items-center mb-6">
+              <div className="bg-[#7A9D96]/10 rounded-lg p-2 mr-3">
+                <HelpCircle className="w-5 h-5 text-[#7A9D96]" />
+              </div>
               <h3 className="text-lg font-bold text-[#2C2C2C]">Questions Distribution</h3>
             </div>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={questionsData} cx="50%" cy="50%" labelLine={false} label={(entry) => `${entry.name}: ${entry.value}`} outerRadius={100} fill="#8884d8" dataKey="value">
                   {questionsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #E8E8E6",
+                    borderRadius: "8px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>

@@ -7,20 +7,19 @@ export interface IUser extends Document {
   password: string;
   role: "User" | "Student" | "Admin" | "SuperVisor";
   isVerified: boolean;
-  verificationCode: string;
-  verificationCodeExpires: Date;
-  passwordResetToken: string;
-  passwordResetExpires: Date;
+  verificationCode?: string;
+  verificationCodeExpires?: Date;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
 
   createdAt: Date;
   updatedAt: Date;
 
   comparePassword(UserPassword: string): Promise<boolean>;
 
-  googleId: String;
-  linkedinId: String;
+  googleId?: string;
+  linkedinId?: string;
 }
-
 const userSchema = new Schema<IUser>(
   {
     name: {

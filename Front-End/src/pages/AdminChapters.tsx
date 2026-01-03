@@ -168,7 +168,7 @@ function AdminChapters() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[#FAFAF8] py-12">
+      <div className="bg-[#FAFAF8] py-12">
         <div className="max-w-7xl mx-auto px-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">

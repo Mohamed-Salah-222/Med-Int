@@ -13,11 +13,19 @@ router.get(
 );
 
 router.get("/google/callback", passport.authenticate("google", { failureRedirect: `${process.env.FRONTEND_URL}/login?error=oauth_failed` }), (req, res) => {
-  // Generate JWT token
   const user = req.user as any;
-  const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET!, {
-    expiresIn: "7d",
-  });
+
+  // Generate JWT token with SAME payload structure as regular login
+  const token = jwt.sign(
+    {
+      userId: user._id, // Changed from 'id' to 'userId'
+      role: user.role, // Added role
+    },
+    process.env.JWT_SECRET!,
+    {
+      expiresIn: "1d", // Match your regular login expiry
+    }
+  );
 
   // Redirect to frontend with token
   res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);

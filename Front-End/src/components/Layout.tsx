@@ -23,7 +23,7 @@ function Layout({ children, showAuth = true }: LayoutProps) {
   const isStudent = auth?.user && auth.user.role === "Student";
   const isAdmin = auth?.user && (auth.user.role === "Admin" || auth.user.role === "SuperVisor");
   const isUser = auth?.user && auth.user.role === "User";
-  
+
   return (
     <div className="min-h-screen bg-[#FAFAF8]">
       {/* Navigation */}
@@ -65,12 +65,6 @@ function Layout({ children, showAuth = true }: LayoutProps) {
                     </button>
                   )}
 
-                  {/* Profile Link - Everyone */}
-                  <button onClick={() => navigate("/profile")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
-                    <User className="w-4 h-4" />
-                    <span>Profile</span>
-                  </button>
-
                   {/* Admin Panel Link - Only for Admin/SuperVisor */}
                   {isAdmin && (
                     <button onClick={() => navigate("/admin")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
@@ -92,7 +86,7 @@ function Layout({ children, showAuth = true }: LayoutProps) {
       </nav>
 
       {/* Page Content */}
-      {children}
+      <div className="min-h-[calc(100vh-73px)]">{children}</div>
       <GlossaryTooltip />
     </div>
   );

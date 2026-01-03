@@ -111,6 +111,8 @@ export const adminAPI = {
   getSettings: () => api.get("/admin/settings"),
   updateSettings: (data: any) => api.put("/admin/settings", data),
   testEmail: () => api.post("/admin/settings/test-email"),
+
+  getUserProgress: (userId: string, courseId: string) => api.get(`/admin/users/${userId}/progress/${courseId}`),
 };
 
 export const glossaryAPI = {

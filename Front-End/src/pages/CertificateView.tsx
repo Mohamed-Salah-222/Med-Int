@@ -13,6 +13,7 @@ interface Certificate {
   completionDate: string;
   finalExamScore: number;
   issuedAt: string;
+  certificateImageUrl?: string;
 }
 
 interface CertificatesResponse {
@@ -107,119 +108,121 @@ function CertificateView() {
           </div>
 
           {/* Certificates Grid */}
-          <div ref={certificatesRef} className="grid md:grid-cols-2 gap-8 mb-12">
+          <div ref={certificatesRef} className="space-y-8 mb-12">
             {/* Main Certificate */}
             {certificates.main && (
-              <div className="bg-white rounded-2xl shadow-2xl p-10 border-4 border-[#7A9D96] print:shadow-none print:break-inside-avoid">
-                <div className="text-center mb-8">
-                  <Shield className="w-16 h-16 text-[#7A9D96] mx-auto mb-4" strokeWidth={1.5} />
-                  <h2 className="text-3xl font-bold text-[#7A9D96] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
-                    Medical Interpreter Certificate
-                  </h2>
-                  <div className="h-1 w-24 bg-[#7A9D96] mx-auto"></div>
-                </div>
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden print:shadow-none print:break-inside-avoid">
+                {certificates.main.certificateImageUrl ? (
+                  // Display the generated certificate image
+                  <img src={certificates.main.certificateImageUrl} alt="Medical Interpreter Certificate" className="w-full h-auto" />
+                ) : (
+                  // Fallback to text-based design if image doesn't exist
+                  <div className="p-10 border-4 border-[#7A9D96]">
+                    <div className="text-center mb-8">
+                      <Shield className="w-16 h-16 text-[#7A9D96] mx-auto mb-4" strokeWidth={1.5} />
+                      <h2 className="text-3xl font-bold text-[#7A9D96] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
+                        Medical Interpreter Certificate
+                      </h2>
+                      <div className="h-1 w-24 bg-[#7A9D96] mx-auto"></div>
+                    </div>
 
-                <div className="space-y-6">
-                  <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
-                    <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
-                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
-                      {certificates.main.userName}
-                    </p>
-                    <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
-                    <p className="text-2xl font-semibold text-[#2C2C2C]">{certificates.main.courseTitle}</p>
-                  </div>
+                    <div className="space-y-6">
+                      <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
+                        <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
+                        <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
+                          {certificates.main.userName}
+                        </p>
+                        <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
+                        <p className="text-2xl font-semibold text-[#2C2C2C]">{certificates.main.courseTitle}</p>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Certificate Number</p>
-                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.main.certificateNumber}</p>
-                    </div>
-                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Verification Code</p>
-                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.main.verificationCode}</p>
-                    </div>
-                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Completion Date</p>
-                      <p className="text-[#2C2C2C] font-semibold">
-                        {new Date(certificates.main.completionDate).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Final Exam Score</p>
-                      <p className="text-[#2C2C2C] font-semibold">{certificates.main.finalExamScore}%</p>
-                    </div>
-                  </div>
-
-                  <div className="text-center pt-6">
-                    <div className="inline-flex items-center space-x-2 bg-[#7A9D96]/10 px-6 py-3 rounded-full">
-                      <CheckCircle className="w-5 h-5 text-[#7A9D96]" />
-                      <span className="text-[#7A9D96] font-semibold">Verified Certificate</span>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Certificate Number</p>
+                          <p className="font-mono text-[#2C2C2C] font-bold">{certificates.main.certificateNumber}</p>
+                        </div>
+                        <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Verification Code</p>
+                          <p className="font-mono text-[#2C2C2C] font-bold">{certificates.main.verificationCode}</p>
+                        </div>
+                        <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Completion Date</p>
+                          <p className="text-[#2C2C2C] font-semibold">
+                            {new Date(certificates.main.completionDate).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <div className="bg-[#7A9D96]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Final Exam Score</p>
+                          <p className="text-[#2C2C2C] font-semibold">{certificates.main.finalExamScore}%</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
             {/* HIPAA Certificate */}
             {certificates.hipaa && (
-              <div className="bg-white rounded-2xl shadow-2xl p-10 border-4 border-[#2C2C2C] print:shadow-none print:break-inside-avoid">
-                <div className="text-center mb-8">
-                  <Shield className="w-16 h-16 text-[#2C2C2C] mx-auto mb-4" strokeWidth={1.5} />
-                  <h2 className="text-3xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
-                    HIPAA Compliance Certificate
-                  </h2>
-                  <div className="h-1 w-24 bg-[#2C2C2C] mx-auto"></div>
-                </div>
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden print:shadow-none print:break-inside-avoid">
+                {certificates.hipaa.certificateImageUrl ? (
+                  // Display the generated certificate image
+                  <img src={certificates.hipaa.certificateImageUrl} alt="HIPAA Compliance Certificate" className="w-full h-auto" />
+                ) : (
+                  // Fallback to text-based design if image doesn't exist
+                  <div className="p-10 border-4 border-[#2C2C2C]">
+                    <div className="text-center mb-8">
+                      <Shield className="w-16 h-16 text-[#2C2C2C] mx-auto mb-4" strokeWidth={1.5} />
+                      <h2 className="text-3xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
+                        HIPAA Compliance Certificate
+                      </h2>
+                      <div className="h-1 w-24 bg-[#2C2C2C] mx-auto"></div>
+                    </div>
 
-                <div className="space-y-6">
-                  <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
-                    <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
-                    <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
-                      {certificates.hipaa.userName}
-                    </p>
-                    <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
-                    <p className="text-2xl font-semibold text-[#2C2C2C]">{certificates.hipaa.courseTitle}</p>
-                  </div>
+                    <div className="space-y-6">
+                      <div className="text-center py-8 border-t-2 border-b-2 border-[#E8E8E6]">
+                        <p className="text-[#6B6B6B] mb-3 text-lg">This certifies that</p>
+                        <p className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
+                          {certificates.hipaa.userName}
+                        </p>
+                        <p className="text-[#6B6B6B] mb-2">has successfully completed</p>
+                        <p className="text-2xl font-semibold text-[#2C2C2C]">{certificates.hipaa.courseTitle}</p>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Certificate Number</p>
-                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.hipaa.certificateNumber}</p>
-                    </div>
-                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Verification Code</p>
-                      <p className="font-mono text-[#2C2C2C] font-bold">{certificates.hipaa.verificationCode}</p>
-                    </div>
-                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Issued Date</p>
-                      <p className="text-[#2C2C2C] font-semibold">
-                        {new Date(certificates.hipaa.issuedAt).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
-                      <p className="text-[#6B6B6B] font-medium mb-1">Status</p>
-                      <p className="text-green-600 font-semibold flex items-center">
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Valid
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-center pt-6">
-                    <div className="inline-flex items-center space-x-2 bg-[#2C2C2C]/10 px-6 py-3 rounded-full">
-                      <CheckCircle className="w-5 h-5 text-[#2C2C2C]" />
-                      <span className="text-[#2C2C2C] font-semibold">Verified Certificate</span>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Certificate Number</p>
+                          <p className="font-mono text-[#2C2C2C] font-bold">{certificates.hipaa.certificateNumber}</p>
+                        </div>
+                        <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Verification Code</p>
+                          <p className="font-mono text-[#2C2C2C] font-bold">{certificates.hipaa.verificationCode}</p>
+                        </div>
+                        <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Issued Date</p>
+                          <p className="text-[#2C2C2C] font-semibold">
+                            {new Date(certificates.hipaa.issuedAt).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <div className="bg-[#2C2C2C]/5 p-4 rounded-lg">
+                          <p className="text-[#6B6B6B] font-medium mb-1">Status</p>
+                          <p className="text-green-600 font-semibold flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Valid
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>

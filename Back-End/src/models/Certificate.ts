@@ -7,10 +7,11 @@ export interface ICertificate extends Document {
   userEmail: string;
   courseTitle: string;
   completionDate: Date;
-  certificateNumber: string; 
+  certificateNumber: string;
   verificationCode: string;
   finalExamScore: number;
   issuedAt: Date;
+  certificateImageUrl?: string;
 }
 
 const certificateSchema = new Schema<ICertificate>(
@@ -59,10 +60,13 @@ const certificateSchema = new Schema<ICertificate>(
       type: Date,
       default: Date.now,
     },
+    certificateImageUrl: {
+      type: String,
+      required: false,
+    },
   },
   { timestamps: true }
 );
-
 
 certificateSchema.index({ userId: 1, courseId: 1 });
 certificateSchema.index({ certificateNumber: 1 });

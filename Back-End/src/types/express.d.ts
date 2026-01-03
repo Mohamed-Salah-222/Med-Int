@@ -1,9 +1,18 @@
-import { JwtPayload } from "jsonwebtoken";
+import "express";
+import { IUser } from "./models/User"; // Adjust path to your User model
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload | { userId: string; role: string };
-    }
+declare module "express" {
+  export interface Request {
+    user?: {
+      userId: string;
+      role: string;
+    };
+  }
+}
+
+// Add Passport user type
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: IUser | { userId: string; role: string };
   }
 }

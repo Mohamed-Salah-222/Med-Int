@@ -92,9 +92,9 @@ function ChapterTestView() {
     }
   }, [testSession?.currentQuestionIndex, testStarted, submitted]);
 
-  // Page leave protection
+  // Page leave protection + Tab switch detection
   useEffect(() => {
-    if (testStarted && !submitted) {
+    if (testStarted && !submitted && testSession) {
       const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         e.preventDefault();
         e.returnValue = "If you leave this page, your test will be marked as abandoned and you'll have to wait 3 hours to retake it.";
@@ -102,10 +102,17 @@ function ChapterTestView() {
       };
 
       const handleVisibilityChange = async () => {
-        if (document.hidden && testSession) {
-          // User left the tab - abandon test
+        if (document.hidden) {
+          // User switched tabs or minimized window - abandon test
           try {
             await courseAPI.abandonChapterTest(id!, testSession.sessionId);
+            // Immediately show abandonment message
+            setTestStarted(false);
+            setSubmitted(true);
+            setError("Test abandoned: You switched tabs or left the page. 3-hour cooldown activated.");
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+            }
           } catch (error) {
             console.error("Error abandoning test:", error);
           }
@@ -187,6 +194,7 @@ function ChapterTestView() {
       const response = await courseAPI.submitChapterTest(id!, testSession.sessionId, formattedAnswers);
       setResults(response.data);
       setSubmitted(true);
+      window.scrollTo(0, 0);
     } catch (error: any) {
       console.error("Error submitting test:", error);
       alert("Failed to submit test. Please try again.");
@@ -198,7 +206,10 @@ function ChapterTestView() {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
-          <div className="text-xl text-[#6B6B6B]">Checking access...</div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#7A9D96] mx-auto mb-4"></div>
+            <p className="text-xl text-[#6B6B6B] font-semibold">Checking access...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -207,16 +218,14 @@ function ChapterTestView() {
   if (!accessAllowed) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
-          <div className="text-center">
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] p-6">
+          <div className="text-center max-w-md">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+              <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
             <h2 className="text-2xl font-bold text-[#2C2C2C] mb-4">Chapter Test Locked</h2>
             <p className="text-[#6B6B6B] mb-6">{error}</p>
-            <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all">
+            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
               Back to Dashboard
             </button>
           </div>
@@ -225,15 +234,14 @@ function ChapterTestView() {
     );
   }
 
-  if (error) {
+  if (error && !testStarted) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
-          <div className="text-center">
-            <Clock className="w-24 h-24 text-[#7A9D96] mx-auto mb-6" strokeWidth={1.5} />
-            <h2 className="text-3xl font-bold text-[#2C2C2C] mb-4">{error}</h2>
-            <p className="text-[#6B6B6B] mb-8 max-w-md mx-auto">Please complete all lessons in this chapter before taking the test.</p>
-            <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all shadow-md">
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] p-6">
+          <div className="text-center max-w-md">
+            <Clock className="w-20 h-20 text-[#7A9D96] mx-auto mb-6" strokeWidth={1.5} />
+            <h2 className="text-2xl font-bold text-[#2C2C2C] mb-4">{error}</h2>
+            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
               Back to Dashboard
             </button>
           </div>
@@ -242,58 +250,104 @@ function ChapterTestView() {
     );
   }
 
-  // Results view
+  // Abandoned test
+  if (error && submitted && !results) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] p-6">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="w-10 h-10 text-red-600" />
+            </div>
+            <h2 className="text-3xl font-bold text-[#2C2C2C] mb-4">Test Abandoned</h2>
+            <p className="text-lg text-[#6B6B6B] mb-2">{error}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-red-800">You must wait 3 hours before attempting this test again.</p>
+            </div>
+            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Results view - POLISHED
   if (submitted && results) {
     return (
       <Layout>
-        <div className="min-h-screen bg-[#FAFAF8] py-12">
+        <div className="bg-[#FAFAF8] py-12">
           <div className="max-w-4xl mx-auto px-6">
-            {/* Results Summary */}
-            <div className={`rounded-2xl shadow-xl p-12 mb-8 ${results.passed ? "bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-500" : "bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-500"}`}>
-              <div className="text-center">
-                {results.passed ? <Trophy className="w-20 h-20 text-green-600 mx-auto mb-6" strokeWidth={1.5} /> : <BookOpen className="w-20 h-20 text-red-600 mx-auto mb-6" strokeWidth={1.5} />}
-                <h1 className="text-4xl font-bold mb-4 text-[#2C2C2C]" style={{ fontFamily: "Lexend, sans-serif" }}>
-                  {results.passed ? "Chapter Test Passed!" : "Keep Studying!"}
+            {/* Results Summary - WARM COLORS */}
+            <div className={`rounded-2xl shadow-lg p-8 mb-8 relative overflow-hidden border-2 ${results.passed ? "bg-gradient-to-br from-[#7A9D96]/10 to-[#6A8D86]/5 border-[#7A9D96]" : "bg-gradient-to-br from-[#E76F51]/10 to-orange-100/50 border-[#E76F51]"}`}>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/30 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/30 rounded-full blur-3xl"></div>
+
+              <div className="text-center relative z-10">
+                <div className="mb-4 inline-block">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${results.passed ? "bg-gradient-to-br from-[#7A9D96] to-[#6A8D86]" : "bg-gradient-to-br from-[#E76F51] to-orange-500"}`}>{results.passed ? <Trophy className="w-8 h-8 text-white" strokeWidth={2} /> : <BookOpen className="w-8 h-8 text-white" strokeWidth={2} />}</div>
+                </div>
+
+                <h1 className="text-3xl font-bold mb-3 text-[#2C2C2C]" style={{ fontFamily: "Lexend, sans-serif" }}>
+                  {results.passed ? "Chapter Test Passed" : "Keep Studying"}
                 </h1>
-                <div className="text-6xl font-bold mb-4 text-[#2C2C2C]">{results.score}%</div>
-                <p className="text-xl text-[#6B6B6B] mb-2">
-                  You answered {results.correctCount} out of {results.totalQuestions} questions correctly
-                </p>
-                {results.passed ? <p className="text-lg text-green-700 font-semibold">Great work! You can now proceed to the next chapter.</p> : <p className="text-lg text-red-700 font-semibold">You need {results.passingScore}% to pass. Review the material and try again after 3 hours.</p>}
+
+                <div className="mb-4">
+                  <div className="text-6xl font-bold text-[#2C2C2C] mb-2">{results.score}%</div>
+                  <p className="text-lg text-[#6B6B6B]">
+                    {results.correctCount} out of {results.totalQuestions} correct
+                  </p>
+                </div>
+
+                {results.passed ? <p className="text-base text-[#7A9D96] font-semibold bg-white/80 inline-block px-6 py-2 rounded-full">Great work! You can now proceed to the next chapter</p> : <p className="text-base text-[#E76F51] font-semibold bg-white/80 inline-block px-6 py-2 rounded-full">Pass score: {results.passingScore}% • Wait 3 hours to retry</p>}
               </div>
             </div>
 
-            {/* Question Results */}
+            {/* Question Results - REFINED */}
             <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
-              <h2 className="text-2xl font-bold text-[#2C2C2C] mb-6 flex items-center">
-                <Target className="w-6 h-6 text-[#7A9D96] mr-3" />
-                Answer Review
+              <h2 className="text-2xl font-bold text-[#2C2C2C] mb-6 flex items-center" style={{ fontFamily: "Lexend, sans-serif" }}>
+                <Target className="w-7 h-7 text-[#7A9D96] mr-3" />
+                Detailed Review
               </h2>
               <div className="space-y-4">
                 {results.results.map((result, index) => (
-                  <div key={result.questionId} className={`p-6 rounded-xl border-2 ${result.isCorrect ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                  <div key={result.questionId} className={`p-6 rounded-xl border-2 transition-all hover:shadow-md ${result.isCorrect ? "bg-[#7A9D96]/5 border-[#7A9D96]/30" : "bg-[#E76F51]/5 border-[#E76F51]/30"}`}>
                     <div className="flex items-start mb-4">
-                      {result.isCorrect ? <CheckCircle className="w-6 h-6 text-green-600 mr-3 flex-shrink-0 mt-1" /> : <XCircle className="w-6 h-6 text-red-600 mr-3 flex-shrink-0 mt-1" />}
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mr-4 ${result.isCorrect ? "bg-[#7A9D96]" : "bg-[#E76F51]"}`}>{result.isCorrect ? <CheckCircle className="w-6 h-6 text-white" strokeWidth={3} /> : <XCircle className="w-6 h-6 text-white" strokeWidth={3} />}</div>
                       <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <span className="font-bold text-[#2C2C2C] mr-2">Question {index + 1}</span>
-                          <span className={`text-xs px-2 py-1 rounded-full font-semibold ${result.isCorrect ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"}`}>{result.isCorrect ? "Correct" : "Incorrect"}</span>
+                        <div className="flex items-center mb-3">
+                          <span className="font-bold text-lg text-[#2C2C2C] mr-3">Question {index + 1}</span>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold ${result.isCorrect ? "bg-[#7A9D96] text-white" : "bg-[#E76F51] text-white"}`}>{result.isCorrect ? "Correct" : "Incorrect"}</span>
                         </div>
-                        <p className="text-[#2C2C2C] mb-3">{result.questionText}</p>
-                      </div>
-                    </div>
+                        <p className="text-[#2C2C2C] text-base mb-4 leading-relaxed">{result.questionText}</p>
 
-                    <div className="ml-9 space-y-2">
-                      <div className={`font-medium ${result.isCorrect ? "text-green-700" : "text-red-700"}`}>Your answer: {result.selectedAnswer}</div>
-                      {!result.isCorrect && <div className="font-medium text-green-700">Correct answer: {result.correctAnswer}</div>}
-                      {result.explanation && (
-                        <div className="bg-white/50 p-3 rounded-lg mt-3 border border-[#E8E8E6]">
-                          <div className="flex items-start">
-                            <AlertCircle className="w-5 h-5 text-[#7A9D96] mr-2 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-[#6B6B6B]">{result.explanation}</p>
+                        <div className="space-y-3">
+                          <div className={`p-3 rounded-lg font-semibold border-2 ${result.isCorrect ? "bg-[#7A9D96]/10 border-[#7A9D96]/30 text-[#7A9D96]" : "bg-[#E76F51]/10 border-[#E76F51]/30 text-[#E76F51]"}`}>
+                            <span className="text-sm opacity-75">Your answer:</span>
+                            <div className="text-base mt-1">{result.selectedAnswer}</div>
                           </div>
+
+                          {!result.isCorrect && (
+                            <div className="p-3 rounded-lg bg-[#7A9D96]/10 border-2 border-[#7A9D96]/30 font-semibold text-[#7A9D96]">
+                              <span className="text-sm opacity-75">Correct answer:</span>
+                              <div className="text-base mt-1">{result.correctAnswer}</div>
+                            </div>
+                          )}
+
+                          {result.explanation && (
+                            <div className="bg-blue-50/50 border-l-4 border-[#7A9D96] p-4 rounded-r-lg">
+                              <div className="flex items-start">
+                                <AlertCircle className="w-5 h-5 text-[#7A9D96] mr-3 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-semibold text-[#2C2C2C] mb-1">Explanation:</p>
+                                  <p className="text-sm text-[#6B6B6B]">{result.explanation}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -301,8 +355,8 @@ function ChapterTestView() {
             </div>
 
             <div className="flex justify-center">
-              <button onClick={() => navigate("/dashboard")} className="bg-[#7A9D96] text-white px-8 py-4 rounded-lg font-semibold hover:bg-[#6A8D86] transition-all shadow-md flex items-center space-x-2">
-                <ArrowLeft className="w-5 h-5" />
+              <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center space-x-2 group">
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                 <span>Back to Dashboard</span>
               </button>
             </div>
@@ -316,46 +370,46 @@ function ChapterTestView() {
   if (!testStarted) {
     return (
       <Layout>
-        <div className="min-h-screen bg-[#FAFAF8] py-12">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="bg-white rounded-2xl shadow-xl p-12 border border-[#E8E8E6]">
+        <div className="bg-[#FAFAF8] py-12">
+          <div className="max-w-2xl mx-auto px-6">
+            <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-12 border border-[#E8E8E6]">
               <div className="text-center mb-8">
-                <Target className="w-20 h-20 text-[#7A9D96] mx-auto mb-6" strokeWidth={1.5} />
-                <h1 className="text-4xl font-bold text-[#2C2C2C] mb-4" style={{ fontFamily: "Lexend, sans-serif" }}>
+                <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Target className="w-10 h-10 text-white" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
                   Chapter Test
                 </h1>
-                <p className="text-xl text-[#6B6B6B]">Ready to test your knowledge?</p>
+                <p className="text-lg text-[#6B6B6B]">Ready to test your knowledge?</p>
               </div>
 
-              {/* Critical Warning */}
-              <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-lg p-6 mb-8">
+              {/* Critical Warning - COMPACT */}
+              <div className="bg-gradient-to-r from-[#E76F51]/10 to-orange-100/50 border-l-4 border-[#E76F51] rounded-lg p-6 mb-8">
                 <div className="flex items-start">
-                  <AlertTriangle className="w-7 h-7 text-red-600 mr-3 flex-shrink-0 mt-1" />
+                  <div className="bg-[#E76F51] rounded-lg p-2 mr-3 flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-white" />
+                  </div>
                   <div>
-                    <p className="font-bold text-xl text-[#2C2C2C] mb-3">⚠️ IMPORTANT - READ CAREFULLY</p>
-                    <ul className="space-y-2 text-[#6B6B6B]">
-                      <li className="flex items-start">
-                        <Clock className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                    <p className="font-bold text-lg text-[#2C2C2C] mb-3">Important Rules</p>
+                    <ul className="space-y-2 text-sm text-[#6B6B6B]">
+                      <li className="flex items-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#E76F51] mr-2"></div>
                         <span>
-                          <strong>1 minute per question</strong> - answer auto-submits when time expires
+                          <strong>1 minute per question</strong> - auto-submits when time expires
                         </span>
                       </li>
-                      <li className="flex items-start">
-                        <AlertTriangle className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <li className="flex items-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#E76F51] mr-2"></div>
                         <span>
-                          <strong>Do NOT leave this page</strong> - test will be marked as failed
+                          <strong>Do NOT switch tabs</strong> - test will be abandoned instantly
                         </span>
                       </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
-                        <span>20 random questions from the chapter</span>
+                      <li className="flex items-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#E76F51] mr-2"></div>
+                        <span>20 random questions • 70% passing score</span>
                       </li>
-                      <li className="flex items-start">
-                        <Target className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
-                        <span>70% passing score required</span>
-                      </li>
-                      <li className="flex items-start">
-                        <Clock className="w-5 h-5 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <li className="flex items-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#E76F51] mr-2"></div>
                         <span>
                           <strong>3-hour cooldown</strong> if you fail or abandon
                         </span>
@@ -366,9 +420,19 @@ function ChapterTestView() {
               </div>
 
               <div className="flex justify-center">
-                <button onClick={handleStartTest} disabled={loading} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-12 py-5 rounded-lg font-bold text-xl hover:shadow-2xl disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-3">
-                  <Target className="w-7 h-7" />
-                  <span>{loading ? "Starting..." : "Start Chapter Test"}</span>
+                <button onClick={handleStartTest} disabled={loading} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-12 py-4 rounded-xl font-bold text-lg hover:shadow-2xl disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-3 group">
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                      <span>Starting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Target className="w-6 h-6" />
+                      <span>Start Chapter Test</span>
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -378,61 +442,61 @@ function ChapterTestView() {
     );
   }
 
-  // Test in progress - show current question
+  // Test in progress - COMPACT OPTIONS
   if (testSession) {
     const currentQuestion = testSession.questions[testSession.currentQuestionIndex];
     const progress = ((testSession.currentQuestionIndex + 1) / testSession.questions.length) * 100;
 
     return (
       <Layout>
-        <div className="min-h-screen bg-[#FAFAF8] py-12">
-          <div className="max-w-3xl mx-auto px-6">
-            {/* Progress Header */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-[#E8E8E6]">
-              <div className="flex items-center justify-between mb-4">
+        <div className="bg-[#FAFAF8] py-12">
+          <div className="max-w-2xl mx-auto px-4">
+            {/* Compact Progress Header */}
+            <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-4 border border-[#E8E8E6]">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-2xl font-bold text-[#2C2C2C]">
-                    Question {testSession.currentQuestionIndex + 1} of {testSession.questions.length}
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#2C2C2C]">
+                    Question {testSession.currentQuestionIndex + 1}/{testSession.questions.length}
                   </h2>
-                  <p className="text-sm text-[#6B6B6B]">Chapter Test in Progress</p>
+                  <p className="text-xs sm:text-sm text-[#6B6B6B]">Chapter Test</p>
                 </div>
                 <div className="text-center">
-                  <div className={`text-4xl font-bold ${timeRemaining <= 10 ? "text-red-600" : "text-[#7A9D96]"}`}>{timeRemaining}s</div>
+                  <div className={`text-3xl sm:text-4xl font-bold ${timeRemaining <= 10 ? "text-red-600 animate-pulse" : "text-[#7A9D96]"}`}>{timeRemaining}s</div>
                   <div className="text-xs text-[#6B6B6B]">Time Left</div>
                 </div>
               </div>
 
-              {/* Progress Bar */}
               <div className="w-full bg-[#E8E8E6] rounded-full h-2">
                 <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
               </div>
             </div>
 
-            {/* Warning Banner */}
-            <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
-              <div className="flex items-center">
-                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-                <p className="text-sm text-red-800 font-semibold">Do not leave this page or your test will be marked as abandoned!</p>
-              </div>
+            {/* Compact Warning */}
+            <div className="bg-[#E76F51]/10 border-l-4 border-[#E76F51] rounded-lg p-3 mb-4">
+              <p className="text-xs sm:text-sm text-[#E76F51] font-semibold flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-2 flex-shrink-0" />
+                Do not switch tabs or leave this page!
+              </p>
             </div>
 
-            {/* Question Card */}
-            <div className="bg-white rounded-2xl shadow-xl p-8 border border-[#E8E8E6]">
-              <p className="text-2xl text-[#2C2C2C] mb-8 leading-relaxed">{currentQuestion.questionText}</p>
+            {/* Compact Question Card */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-[#E8E8E6]">
+              <p className="text-lg sm:text-xl text-[#2C2C2C] mb-6 leading-relaxed font-medium">{currentQuestion.questionText}</p>
 
-              <div className="space-y-4">
+              {/* COMPACT OPTIONS - NO SCROLL */}
+              <div className="space-y-2">
                 {currentQuestion.options.map((option, index) => (
-                  <label key={index} className={`flex items-center p-5 rounded-xl border-2 cursor-pointer transition-all ${currentAnswer === option ? "border-[#7A9D96] bg-[#7A9D96]/10 shadow-md" : "border-[#E8E8E6] hover:border-[#7A9D96]/50 hover:bg-[#FAFAF8]"}`}>
-                    <input type="radio" name="answer" value={option} checked={currentAnswer === option} onChange={(e) => setCurrentAnswer(e.target.value)} className="w-6 h-6 text-[#7A9D96] mr-4 cursor-pointer" />
-                    <span className="text-lg text-[#2C2C2C] font-medium">{option}</span>
+                  <label key={index} className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${currentAnswer === option ? "border-[#7A9D96] bg-[#7A9D96]/10 shadow-sm" : "border-[#E8E8E6] hover:border-[#7A9D96]/50 hover:bg-[#FAFAF8]"}`}>
+                    <input type="radio" name="answer" value={option} checked={currentAnswer === option} onChange={(e) => setCurrentAnswer(e.target.value)} className="w-5 h-5 text-[#7A9D96] mr-3 cursor-pointer flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-[#2C2C2C] font-medium leading-snug">{option}</span>
                   </label>
                 ))}
               </div>
 
-              <div className="mt-8 flex justify-center">
-                <button onClick={handleNextQuestion} disabled={!currentAnswer} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-10 py-4 rounded-lg font-bold text-lg hover:shadow-lg disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-2">
+              <div className="mt-6 flex justify-center">
+                <button onClick={handleNextQuestion} disabled={!currentAnswer} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-10 py-3 rounded-xl font-bold hover:shadow-lg disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-2 group">
                   <span>{testSession.currentQuestionIndex === testSession.questions.length - 1 ? "Submit Test" : "Next Question"}</span>
-                  <ArrowRight className="w-6 h-6" />
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
             </div>

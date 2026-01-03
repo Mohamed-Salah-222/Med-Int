@@ -9,11 +9,12 @@ import User from "../models/User";
 import { generateCertificateNumber, generateVerificationCode } from "../utils/certificateGenerator";
 import { sendCertificateEmail } from "../utils/emailService";
 import TestSession from "../models/TestSession";
+import { generateCertificate } from "../services/certificateGenerator";
 
 interface SubmitQuizBody {
   answers: {
     questionId: string;
-    selectedAnswer: string; // Changed from number to string
+    selectedAnswer: string;
   }[];
 }
 
@@ -38,6 +39,12 @@ export const getCourse = async (req: Request, res: Response, next: NextFunction)
     const course = await Course.findById(id).populate({
       path: "chapters",
       select: "title description chapterNumber isPublished",
+      match: { isPublished: true }, // Only get published chapters
+      populate: {
+        path: "lessons",
+        select: "title lessonNumber isPublished",
+        match: { isPublished: true }, // Only get published lessons
+      },
     });
 
     if (!course) {
@@ -45,15 +52,22 @@ export const getCourse = async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const publishedChapters = course.chapters.filter((chapter: any) => chapter.isPublished);
+    // Map chapters with their published lessons
+    const chaptersWithLessons = course.chapters.map((chapter: any) => ({
+      _id: chapter._id,
+      title: chapter.title,
+      description: chapter.description,
+      chapterNumber: chapter.chapterNumber,
+      lessons: chapter.lessons || [],
+    }));
 
     res.status(200).json({
       course: {
         id: course._id,
         title: course.title,
         description: course.description,
-        totalChapters: publishedChapters.length,
-        chapters: publishedChapters,
+        totalChapters: chaptersWithLessons.length,
+        chapters: chaptersWithLessons,
       },
     });
   } catch (error) {
@@ -247,36 +261,80 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= lesson.quiz.passingScore;
 
-    // Update user progress if passed
+    // Find next lesson ID
+    let nextLessonId = null;
     if (passed) {
-      const chapter = await Chapter.findById(lesson.chapterId);
-      if (!chapter) {
-        res.status(404).json({ message: "Chapter not found" });
-        return;
+      const chapter = await Chapter.findById(lesson.chapterId).populate("lessons");
+
+      if (chapter) {
+        console.log("Current lesson ID:", id);
+        console.log(
+          "Chapter lessons:",
+          chapter.lessons.map((l: any) => ({ id: l._id.toString(), number: l.lessonNumber, title: l.title }))
+        );
+
+        // Find current lesson index in the chapter
+        const currentLessonIndex = chapter.lessons.findIndex((l: any) => l._id.toString() === id);
+
+        console.log("Current lesson index:", currentLessonIndex);
+
+        // Check if there's a next lesson in this chapter
+        if (currentLessonIndex !== -1 && currentLessonIndex < chapter.lessons.length - 1) {
+          const nextLesson = chapter.lessons[currentLessonIndex + 1] as any;
+          console.log("Next lesson found:", nextLesson._id.toString(), nextLesson.title);
+
+          if (nextLesson.isPublished) {
+            nextLessonId = nextLesson._id.toString();
+          }
+        } else {
+          // No more lessons in this chapter, check for next chapter
+          const course = await Course.findById(chapter.courseId).populate({
+            path: "chapters",
+            populate: {
+              path: "lessons",
+              match: { isPublished: true },
+            },
+          });
+
+          if (course) {
+            const currentChapterIndex = course.chapters.findIndex((ch: any) => ch._id.toString() === chapter._id.toString());
+
+            // Check if there's a next chapter
+            if (currentChapterIndex !== -1 && currentChapterIndex < course.chapters.length - 1) {
+              const nextChapter = course.chapters[currentChapterIndex + 1] as any;
+              if (nextChapter.isPublished && nextChapter.lessons?.length > 0) {
+                nextLessonId = nextChapter.lessons[0]._id.toString();
+              }
+            }
+          }
+        }
+
+        console.log("Final nextLessonId:", nextLessonId);
+
+        // Update user progress
+        const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+        // Check if lesson already completed
+        const existingLesson = progress.completedLessons.find((cl: any) => cl.lessonId.toString() === id);
+
+        if (!existingLesson) {
+          // First time passing this lesson
+          progress.completedLessons.push({
+            lessonId: id as any,
+            completedAt: new Date(),
+            quizScore: correctCount,
+            attempts: 1,
+            passed: true,
+          } as any);
+        } else {
+          // Update attempts count
+          existingLesson.attempts += 1;
+          existingLesson.quizScore = correctCount;
+          existingLesson.completedAt = new Date();
+        }
+
+        await progress.save();
       }
-
-      const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
-
-      // Check if lesson already completed
-      const existingLesson = progress.completedLessons.find((cl: any) => cl.lessonId.toString() === id);
-
-      if (!existingLesson) {
-        // First time passing this lesson
-        progress.completedLessons.push({
-          lessonId: id as any,
-          completedAt: new Date(),
-          quizScore: correctCount,
-          attempts: 1,
-          passed: true,
-        } as any);
-      } else {
-        // Update attempts count
-        existingLesson.attempts += 1;
-        existingLesson.quizScore = correctCount;
-        existingLesson.completedAt = new Date();
-      }
-
-      await progress.save();
     }
 
     res.status(200).json({
@@ -286,6 +344,7 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       passed,
       passingScore: lesson.quiz.passingScore,
       results,
+      nextLessonId, // Include next lesson ID in response
     });
   } catch (error) {
     next(error);
@@ -792,6 +851,34 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         res.status(404).json({ message: "User not found" });
         return;
       }
+      // Generate certificate numbers and codes
+      const mainCertNumber = generateCertificateNumber();
+      const mainVerifCode = generateVerificationCode();
+      const hipaaCertNumber = generateCertificateNumber();
+      const hipaaVerifCode = generateVerificationCode();
+
+      // Generate Medical Interpreter Certificate Image
+      const mainCertificateImageUrl = await generateCertificate({
+        userName: user.name,
+        courseTitle: course.title,
+        completionDate: new Date(),
+        certificateNumber: mainCertNumber,
+        verificationCode: mainVerifCode,
+        finalExamScore: score,
+        certificateType: "medical",
+      });
+
+      // Generate HIPAA Certificate Image
+      const hipaaCertificateImageUrl = await generateCertificate({
+        userName: user.name,
+        courseTitle: "HIPAA for Medical Interpreters",
+        completionDate: new Date(),
+        certificateNumber: hipaaCertNumber,
+        verificationCode: hipaaVerifCode,
+        finalExamScore: score,
+        certificateType: "hipaa",
+      });
+
       // Create Main Medical Interpreter Certificate
       const mainCertificate = await Certificate.create({
         userId,
@@ -800,10 +887,11 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         userEmail: user.email,
         courseTitle: course.title,
         completionDate: new Date(),
-        certificateNumber: generateCertificateNumber(),
-        verificationCode: generateVerificationCode(),
+        certificateNumber: mainCertNumber,
+        verificationCode: mainVerifCode,
         finalExamScore: score,
         issuedAt: new Date(),
+        certificateImageUrl: mainCertificateImageUrl, // ← NEW
       });
 
       // Create HIPAA Certificate
@@ -814,10 +902,11 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         userEmail: user.email,
         courseTitle: "HIPAA for Medical Interpreters",
         completionDate: new Date(),
-        certificateNumber: generateCertificateNumber(),
-        verificationCode: generateVerificationCode(),
+        certificateNumber: hipaaCertNumber,
+        verificationCode: hipaaVerifCode,
         finalExamScore: score,
         issuedAt: new Date(),
+        certificateImageUrl: hipaaCertificateImageUrl, // ← NEW
       });
 
       try {
@@ -859,11 +948,13 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
             certificateNumber: mainCertificate.certificateNumber,
             verificationCode: mainCertificate.verificationCode,
             issuedAt: mainCertificate.issuedAt,
+            certificateImageUrl: mainCertificate.certificateImageUrl, // ← ADD THIS
           },
           hipaa: {
             certificateNumber: hipaaCertificate.certificateNumber,
             verificationCode: hipaaCertificate.verificationCode,
             issuedAt: hipaaCertificate.issuedAt,
+            certificateImageUrl: hipaaCertificate.certificateImageUrl, // ← ADD THIS
           },
         },
         results,
@@ -1132,6 +1223,7 @@ export const getUserCertificates = async (req: Request, res: Response, next: Nex
               completionDate: mainCertificate.completionDate,
               finalExamScore: mainCertificate.finalExamScore,
               issuedAt: mainCertificate.issuedAt,
+              certificateImageUrl: mainCertificate.certificateImageUrl, // ← ADD THIS
             }
           : null,
         hipaa: hipaaCertificate
@@ -1143,6 +1235,7 @@ export const getUserCertificates = async (req: Request, res: Response, next: Nex
               completionDate: hipaaCertificate.completionDate,
               finalExamScore: hipaaCertificate.finalExamScore,
               issuedAt: hipaaCertificate.issuedAt,
+              certificateImageUrl: hipaaCertificate.certificateImageUrl, // ← ADD THIS
             }
           : null,
       },

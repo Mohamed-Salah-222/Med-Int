@@ -97,21 +97,21 @@
 
 /* Blue - Key Concepts */
 .lesson-content .highlight {
-  @apply font-semibold text-[#856A00];
+  @apply font-semibold text-[#E76F51];
 }
 
 /* Red - Critical/Urgent */
 .lesson-content .highlight-critical {
-  @apply font-semibold text-[#EF4444];
+  @apply font-semibold text-[#E76F51];
 }
 
 /* Selection Styles */
 .lesson-content .highlight::selection {
-  @apply bg-[#0EA5E9]/30;
+  @apply bg-[#E76F51]/30;
 }
 
 .lesson-content .highlight-critical::selection {
-  @apply bg-[#EF4444]/30;
+  @apply bg-[#E76F51]/30;
 }
 
 /* ========================================
