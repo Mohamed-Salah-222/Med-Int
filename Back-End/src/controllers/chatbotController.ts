@@ -4,14 +4,26 @@ import Lesson from "../models/Lesson";
 import Chapter from "../models/Chapter";
 import ChatUsage from "../models/ChatUsage";
 
+//*=====================================================
+//* TYPE DEFINITIONS
+//*=====================================================
+
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
+//*=====================================================
+//* CONSTANTS
+//*=====================================================
+
 const MESSAGE_LIMIT = 15;
 
-// Initialize OpenAI client lazily
+//*=====================================================
+//* UTILITY FUNCTIONS
+//*=====================================================
+
+//*--- Initialize OpenAI Client (Lazy Loading)
 const getOpenAIClient = () => {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not set in environment variables");
@@ -22,6 +34,18 @@ const getOpenAIClient = () => {
   });
 };
 
+//*--- Strip HTML Tags from Content
+const stripHtml = (html: string): string =>
+  html
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+//*=====================================================
+//* CHAT USAGE TRACKING
+//*=====================================================
+
+//*--- Get Chat Usage Statistics for Lesson
 export const getChatUsage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { lessonId } = req.params;
@@ -44,22 +68,29 @@ export const getChatUsage = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+//*=====================================================
+//* AI CHAT INTERACTION
+//*=====================================================
+
+//*--- Send Message to AI Tutor
 export const sendChatMessage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { lessonId, message, conversationHistory } = req.body;
     const userId = req.user?.userId;
 
+    // Authentication check
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
+    // Message validation
     if (!message || message.trim().length === 0) {
       res.status(400).json({ message: "Message cannot be empty" });
       return;
     }
 
-    // Check message limit
+    // Get or create usage tracking
     let usage = await ChatUsage.findOne({ userId, lessonId });
 
     if (!usage) {
@@ -71,6 +102,7 @@ export const sendChatMessage = async (req: Request, res: Response, next: NextFun
       });
     }
 
+    // Check message limit
     if (usage.messageCount >= MESSAGE_LIMIT) {
       res.status(429).json({
         message: "Message limit reached for this lesson",
@@ -80,7 +112,7 @@ export const sendChatMessage = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // Get lesson content for context
+    // Get lesson content for AI context
     const lesson = await Lesson.findById(lessonId).populate("chapterId");
 
     if (!lesson) {
@@ -90,12 +122,7 @@ export const sendChatMessage = async (req: Request, res: Response, next: NextFun
 
     const chapter = await Chapter.findById(lesson.chapterId);
 
-    // Strip HTML tags from lesson content for context
-    const stripHtml = (html: string) =>
-      html
-        .replace(/<[^>]*>/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
+    // Prepare lesson content for system prompt
     const lessonText = stripHtml(lesson.content);
 
     // Build system prompt with lesson context
@@ -137,7 +164,7 @@ ${lessonText.substring(0, 1500)}... (content truncated)
 
     const aiResponse = completion.choices[0].message.content;
 
-    // Increment message count
+    // Increment message count and update timestamp
     usage.messageCount += 1;
     usage.lastMessageAt = new Date();
     await usage.save();
@@ -151,6 +178,7 @@ ${lessonText.substring(0, 1500)}... (content truncated)
   } catch (error: any) {
     console.error("OpenAI API Error:", error);
 
+    // Handle OpenAI quota errors
     if (error.code === "insufficient_quota") {
       res.status(429).json({
         message: "AI service temporarily unavailable. Please try again later.",
@@ -158,6 +186,7 @@ ${lessonText.substring(0, 1500)}... (content truncated)
       return;
     }
 
+    // Handle API key configuration errors
     if (error.message && error.message.includes("OPENAI_API_KEY")) {
       res.status(500).json({
         message: "AI service configuration error. Please contact support.",
