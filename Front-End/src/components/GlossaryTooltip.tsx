@@ -112,6 +112,13 @@ function GlossaryTooltip() {
     const handleClickOutside = (e: MouseEvent) => {
       // Close tooltip when clicking outside
       const target = e.target as HTMLElement;
+
+      // Ensure target is an HTMLElement before using closest
+      if (!(target instanceof HTMLElement)) {
+        setTooltip(null);
+        return;
+      }
+
       if (!target.closest(".highlight") && !target.closest(".highlight-critical")) {
         setTooltip(null);
       }

@@ -50,7 +50,7 @@ function Layout({ children, showAuth = true }: LayoutProps) {
               ) : (
                 <>
                   {/* Dashboard Link - Only for Students and Admins */}
-                  {!isUser && (
+                  {(isStudent || isAdmin) && (
                     <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
                       <LayoutDashboard className="w-4 h-4" />
                       <span>Dashboard</span>

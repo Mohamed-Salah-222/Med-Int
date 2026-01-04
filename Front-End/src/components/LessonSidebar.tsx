@@ -31,7 +31,7 @@ function LessonSidebar({ chapterTitle, chapterNumber, chapterId, lessons, curren
   return (
     <>
       {/* Toggle Button */}
-      <button onClick={() => setIsOpen(!isOpen)} className={`fixed top-20 z-50 bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-4 py-3 rounded-r-xl shadow-lg hover:shadow-xl transition-all duration-300 ${isOpen ? "left-[280px]" : "left-0"}`}>
+      <button onClick={() => setIsOpen(!isOpen)} className={`fixed top-20 z-50 bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-4 py-3 rounded-r-xl shadow-lg hover:shadow-xl transition-all duration-300 ${isOpen ? "left-[280px]" : "left-0"}`} aria-label={isOpen ? "Hide lesson sidebar" : "Show lesson sidebar"}>
         <div className="flex items-center space-x-2">
           {isOpen ? (
             <>

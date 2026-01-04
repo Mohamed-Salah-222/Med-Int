@@ -148,7 +148,7 @@ function LessonChatbot({ lessonId, lessonTitle }: LessonChatbotProps) {
               {messageCount}/{MESSAGE_LIMIT}
             </div>
           )}
-          <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors">
+          <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1.5 rounded-lg transition-colors" aria-label="Close chat">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -222,7 +222,7 @@ function LessonChatbot({ lessonId, lessonTitle }: LessonChatbotProps) {
             placeholder={messageCount >= MESSAGE_LIMIT ? "Message limit reached" : "Ask me anything..."}
             className="flex-1 border-2 border-[#E8E8E6] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A9D96] focus:border-transparent disabled:bg-[#FAFAF8] disabled:cursor-not-allowed transition-all"
           />
-          <button onClick={handleSendMessage} disabled={!inputMessage.trim() || messageCount >= MESSAGE_LIMIT || isLoading} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white p-3 rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95">
+          <button onClick={handleSendMessage} disabled={!inputMessage.trim() || messageCount >= MESSAGE_LIMIT || isLoading} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white p-3 rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 active:scale-95" aria-label="Send message">
             <Send className="w-5 h-5" />
           </button>
         </div>
