@@ -11,6 +11,10 @@ import { sendCertificateEmail } from "../utils/emailService";
 import TestSession from "../models/TestSession";
 import { generateCertificate } from "../services/certificateGenerator";
 
+//*=====================================================
+//* TYPE DEFINITIONS
+//*=====================================================
+
 interface SubmitQuizBody {
   answers: {
     questionId: string;
@@ -32,6 +36,37 @@ interface SubmitExamBody {
   }[];
 }
 
+//*=====================================================
+//* UTILITY FUNCTIONS
+//*=====================================================
+
+//*--- Get or Create User Progress Record
+const getOrCreateProgress = async (userId: string, courseId: string) => {
+  let progress = await UserProgress.findOne({ userId, courseId });
+
+  if (!progress) {
+    progress = await UserProgress.create({
+      userId,
+      courseId,
+      currentChapterNumber: 1,
+      currentLessonNumber: 1,
+      completedLessons: [],
+      chapterTestAttempts: [],
+      chapterTestCooldowns: [],
+      finalExamAttempts: [],
+      courseCompleted: false,
+      certificateIssued: false,
+    });
+  }
+
+  return progress;
+};
+
+//*=====================================================
+//* COURSE & CONTENT RETRIEVAL
+//*=====================================================
+
+//*--- Get Course with Published Chapters and Lessons
 export const getCourse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -39,11 +74,11 @@ export const getCourse = async (req: Request, res: Response, next: NextFunction)
     const course = await Course.findById(id).populate({
       path: "chapters",
       select: "title description chapterNumber isPublished",
-      match: { isPublished: true }, // Only get published chapters
+      match: { isPublished: true },
       populate: {
         path: "lessons",
         select: "title lessonNumber isPublished",
-        match: { isPublished: true }, // Only get published lessons
+        match: { isPublished: true },
       },
     });
 
@@ -75,6 +110,7 @@ export const getCourse = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+//*--- Get Chapter with Published Lessons and Test Info
 export const getChapter = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -89,6 +125,7 @@ export const getChapter = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
+    // Filter published lessons only
     const publishedLessons = chapter.lessons.filter((lesson: any) => lesson.isPublished);
 
     res.status(200).json({
@@ -112,6 +149,7 @@ export const getChapter = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+//*--- Get Lesson Content with Chapter Context
 export const getLesson = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -126,12 +164,13 @@ export const getLesson = async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
+    // Check if lesson is published
     if (!lesson.isPublished) {
       res.status(403).json({ message: "This lesson is not published yet" });
       return;
     }
 
-    // Get all lessons in this chapter for sidebar
+    // Get all published lessons in this chapter for sidebar navigation
     const chapterLessons = await Lesson.find({
       chapterId: lesson.chapterId,
       isPublished: true,
@@ -160,6 +199,11 @@ export const getLesson = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+//*=====================================================
+//* LESSON QUIZ HANDLING
+//*=====================================================
+
+//*--- Get Lesson Quiz Questions (Randomized)
 export const getLessonQuiz = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -176,10 +220,10 @@ export const getLessonQuiz = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // Fetch questions
+    // Fetch questions (exclude correct answers)
     const questions = await Question.find({
       _id: { $in: lesson.quiz.questions },
-    }).select("-correctAnswer -explanation"); // Don't send correct answer
+    }).select("-correctAnswer -explanation");
 
     // Randomize options for each question
     const randomizedQuestions = questions.map((q) => {
@@ -208,6 +252,7 @@ export const getLessonQuiz = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+//*--- Submit Lesson Quiz Answers
 export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQuizBody>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
@@ -226,6 +271,7 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       return;
     }
 
+    // Fetch questions with correct answers
     const questions = await Question.find({
       _id: { $in: lesson.quiz.questions },
     });
@@ -261,27 +307,18 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
     const score = Math.round((correctCount / totalQuestions) * 100);
     const passed = score >= lesson.quiz.passingScore;
 
-    // Find next lesson ID
+    // Find next lesson ID (for navigation)
     let nextLessonId = null;
     if (passed) {
       const chapter = await Chapter.findById(lesson.chapterId).populate("lessons");
 
       if (chapter) {
-        console.log("Current lesson ID:", id);
-        console.log(
-          "Chapter lessons:",
-          chapter.lessons.map((l: any) => ({ id: l._id.toString(), number: l.lessonNumber, title: l.title }))
-        );
-
         // Find current lesson index in the chapter
         const currentLessonIndex = chapter.lessons.findIndex((l: any) => l._id.toString() === id);
-
-        console.log("Current lesson index:", currentLessonIndex);
 
         // Check if there's a next lesson in this chapter
         if (currentLessonIndex !== -1 && currentLessonIndex < chapter.lessons.length - 1) {
           const nextLesson = chapter.lessons[currentLessonIndex + 1] as any;
-          console.log("Next lesson found:", nextLesson._id.toString(), nextLesson.title);
 
           if (nextLesson.isPublished) {
             nextLessonId = nextLesson._id.toString();
@@ -308,8 +345,6 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
             }
           }
         }
-
-        console.log("Final nextLessonId:", nextLessonId);
 
         // Update user progress
         const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
@@ -344,34 +379,18 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       passed,
       passingScore: lesson.quiz.passingScore,
       results,
-      nextLessonId, // Include next lesson ID in response
+      nextLessonId,
     });
   } catch (error) {
     next(error);
   }
 };
 
-const getOrCreateProgress = async (userId: string, courseId: string) => {
-  let progress = await UserProgress.findOne({ userId, courseId });
+//*=====================================================
+//* PROGRESS TRACKING
+//*=====================================================
 
-  if (!progress) {
-    progress = await UserProgress.create({
-      userId,
-      courseId,
-      currentChapterNumber: 1,
-      currentLessonNumber: 1,
-      completedLessons: [],
-      chapterTestAttempts: [],
-      chapterTestCooldowns: [],
-      finalExamAttempts: [],
-      courseCompleted: false,
-      certificateIssued: false,
-    });
-  }
-
-  return progress;
-};
-
+//*--- Get User Progress Summary
 export const getUserProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -403,7 +422,153 @@ export const getUserProgress = async (req: Request, res: Response, next: NextFun
   }
 };
 
-export const getChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+//*--- Get Detailed Progress Breakdown
+export const getDetailedProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const progress = await getOrCreateProgress(userId, courseId);
+
+    // Get course with chapters and lessons
+    const course = await Course.findById(courseId).populate({
+      path: "chapters",
+      populate: {
+        path: "lessons",
+        select: "title lessonNumber isPublished",
+      },
+    });
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Build detailed progress per chapter
+    const chapters = course.chapters as any[];
+    const chaptersProgress = chapters.map((chapter) => {
+      const lessons = chapter.lessons || [];
+
+      const lessonsProgress = lessons.map((lesson: any) => {
+        const completed = progress.completedLessons.find((cl: any) => cl.lessonId.toString() === lesson._id.toString());
+
+        return {
+          lessonId: lesson._id,
+          lessonNumber: lesson.lessonNumber,
+          title: lesson.title,
+          completed: !!completed,
+          quizScore: completed?.quizScore || 0,
+          attempts: completed?.attempts || 0,
+          completedAt: completed?.completedAt || null,
+        };
+      });
+
+      const chapterTestAttempt = progress.chapterTestAttempts.find((attempt: any) => attempt.chapterId.toString() === chapter._id.toString());
+
+      const allLessonsCompleted = lessonsProgress.every((lp: any) => lp.completed);
+      const testPassed = chapterTestAttempt?.passed || false;
+
+      return {
+        chapterId: chapter._id,
+        chapterNumber: chapter.chapterNumber,
+        title: chapter.title,
+        totalLessons: lessonsProgress.length,
+        completedLessons: lessonsProgress.filter((lp: any) => lp.completed).length,
+        allLessonsCompleted,
+        testTaken: !!chapterTestAttempt,
+        testPassed,
+        testScore: chapterTestAttempt?.score || null,
+        testAttemptedAt: chapterTestAttempt?.attemptedAt || null,
+        lessons: lessonsProgress,
+      };
+    });
+
+    // Determine next action for user
+    let nextAction = null;
+
+    for (const chapter of chaptersProgress) {
+      // Check for incomplete lessons
+      const nextLesson = chapter.lessons.find((l: any) => !l.completed);
+      if (nextLesson) {
+        nextAction = {
+          type: "lesson",
+          chapterNumber: chapter.chapterNumber,
+          lessonNumber: nextLesson.lessonNumber,
+          title: nextLesson.title,
+          message: `Continue with Lesson ${nextLesson.lessonNumber}: ${nextLesson.title}`,
+        };
+        break;
+      }
+
+      // All lessons done, but test not passed
+      if (chapter.allLessonsCompleted && !chapter.testPassed) {
+        nextAction = {
+          type: "chapter-test",
+          chapterNumber: chapter.chapterNumber,
+          title: chapter.title,
+          message: `Take Chapter ${chapter.chapterNumber} Test`,
+        };
+        break;
+      }
+    }
+
+    // All chapters done, check final exam
+    if (!nextAction) {
+      const allChaptersPassed = chaptersProgress.every((c: any) => c.testPassed);
+      const finalExamPassed = progress.finalExamAttempts.some((attempt: any) => attempt.passed);
+
+      if (allChaptersPassed && !finalExamPassed) {
+        nextAction = {
+          type: "final-exam",
+          message: "Take the Final Exam to earn your certificates",
+        };
+      } else if (finalExamPassed) {
+        nextAction = {
+          type: "completed",
+          message: "Congratulations! You've completed the course.",
+        };
+      }
+    }
+
+    // Final exam attempts summary
+    const finalExamAttempts = progress.finalExamAttempts.map((attempt: any) => ({
+      score: attempt.score,
+      passed: attempt.passed,
+      attemptedAt: attempt.attemptedAt,
+    }));
+
+    res.status(200).json({
+      progress: {
+        currentChapter: progress.currentChapterNumber,
+        currentLesson: progress.currentLessonNumber,
+        courseCompleted: progress.courseCompleted,
+        certificateIssued: progress.certificateIssued,
+        completedAt: progress.completedAt,
+        chapters: chaptersProgress,
+        finalExam: {
+          attempts: finalExamAttempts,
+          passed: progress.finalExamAttempts.some((a: any) => a.passed),
+          bestScore: Math.max(...finalExamAttempts.map((a: any) => a.score), 0),
+        },
+        nextAction,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*=====================================================
+//* CHAPTER TEST HANDLING
+//*=====================================================
+
+//*--- Start Chapter Test Session
+export const startChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // chapter ID
     const userId = req.user?.userId;
@@ -413,7 +578,7 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // ADD: Admin/SuperVisor bypass
+    // Admin/SuperVisor bypass
     const userRole = req.user?.role;
     const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
 
@@ -429,9 +594,141 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // MODIFY: Only check requirements for regular users
+    // Check if there's an active session already
+    const existingSession = await TestSession.findOne({
+      userId,
+      chapterId: id,
+      isActive: true,
+      isSubmitted: false,
+    });
+
+    if (existingSession) {
+      res.status(400).json({
+        message: "You already have an active test session",
+        sessionId: existingSession._id,
+      });
+      return;
+    }
+
+    // Only check requirements for regular users
     if (!isAdminOrSupervisor) {
+      const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
       // Check if user completed all lessons in this chapter
+      const chapterLessons = await Lesson.find({ chapterId: id });
+      const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
+      const allLessonsCompleted = chapterLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
+
+      if (!allLessonsCompleted) {
+        res.status(403).json({
+          message: "You must complete all lessons in this chapter before taking the test",
+        });
+        return;
+      }
+
+      // Check cooldown
+      const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+      if (cooldown) {
+        const cooldownHours = chapter.chapterTest.cooldownHours;
+        const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
+        const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
+        if (timeSinceLastAttempt < cooldownMs) {
+          const remainingMs = cooldownMs - timeSinceLastAttempt;
+          const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
+
+          res.status(403).json({
+            message: "Test is on cooldown",
+            remainingMinutes,
+            canRetakeAt: new Date(Date.now() + remainingMs),
+          });
+          return;
+        }
+      }
+    }
+
+    // Fetch all questions
+    const allQuestions = await Question.find({
+      _id: { $in: chapter.chapterTest.questions },
+    }).select("-correctAnswer -explanation");
+
+    // Randomly select 20 questions (or all if less than 20)
+    const questionsToUse = allQuestions.length > 20 ? allQuestions.sort(() => Math.random() - 0.5).slice(0, 20) : allQuestions;
+
+    // Randomize options for each question
+    const randomizedQuestions = questionsToUse.map((q) => {
+      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+      return {
+        _id: q._id,
+        questionText: q.questionText,
+        options: shuffledOptions,
+        type: q.type,
+        difficulty: q.difficulty,
+      };
+    });
+
+    // Create test session (40 minutes expiry)
+    const session = await TestSession.create({
+      userId,
+      chapterId: id,
+      testType: "chapter",
+      questions: randomizedQuestions.map((q) => q._id),
+      answers: randomizedQuestions.map((q) => ({
+        questionId: q._id,
+        selectedAnswer: null,
+        timeSpent: 0,
+      })),
+      startedAt: new Date(),
+      expiresAt: new Date(Date.now() + 40 * 60 * 1000),
+      isActive: true,
+    });
+
+    res.status(200).json({
+      sessionId: session._id,
+      test: {
+        chapterId: chapter._id,
+        chapterTitle: chapter.title,
+        questions: randomizedQuestions,
+        totalQuestions: randomizedQuestions.length,
+        passingScore: chapter.chapterTest.passingScore,
+        timePerQuestion: 60,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*--- Get Chapter Test Questions (Legacy - uses session now)
+export const getChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Admin/SuperVisor bypass
+    const userRole = req.user?.role;
+    const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
+
+    const chapter = await Chapter.findById(id);
+
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    if (!chapter.isPublished) {
+      res.status(403).json({ message: "This chapter is not published yet" });
+      return;
+    }
+
+    // Only check requirements for regular users
+    if (!isAdminOrSupervisor) {
       const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
       const chapterLessons = await Lesson.find({ chapterId: id });
       const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
@@ -471,10 +768,8 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
       _id: { $in: chapter.chapterTest.questions },
     }).select("-correctAnswer -explanation");
 
-    // Randomly select 20 questions (or all if less than 20)
     const questionsToUse = allQuestions.length > 20 ? allQuestions.sort(() => Math.random() - 0.5).slice(0, 20) : allQuestions;
 
-    // Randomize options for each question
     const randomizedQuestions = questionsToUse.map((q) => {
       const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
       return {
@@ -501,6 +796,7 @@ export const getChapterTest = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+//*--- Submit Chapter Test Answers
 export const submitChapterTest = async (req: Request<{ id: string }, {}, { sessionId: string; answers: any[] }>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // chapter ID
@@ -619,6 +915,74 @@ export const submitChapterTest = async (req: Request<{ id: string }, {}, { sessi
   }
 };
 
+//*--- Abandon Chapter Test (Triggers Cooldown)
+export const abandonChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const { sessionId } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const session = await TestSession.findOne({
+      _id: sessionId,
+      userId,
+      chapterId: id,
+    });
+
+    if (!session) {
+      res.status(404).json({ message: "Test session not found" });
+      return;
+    }
+
+    if (session.isSubmitted) {
+      res.status(400).json({ message: "Test already submitted" });
+      return;
+    }
+
+    // Mark as abandoned
+    session.isAbandoned = true;
+    session.isActive = false;
+    await session.save();
+
+    const chapter = await Chapter.findById(id);
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    // Trigger cooldown
+    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+    const existingCooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
+
+    if (existingCooldown) {
+      existingCooldown.lastAttemptAt = new Date();
+    } else {
+      progress.chapterTestCooldowns.push({
+        chapterId: id as any,
+        lastAttemptAt: new Date(),
+      } as any);
+    }
+
+    await progress.save();
+
+    res.status(200).json({
+      message: "Test abandoned. 3-hour cooldown activated.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*=====================================================
+//* FINAL EXAM HANDLING
+//*=====================================================
+
+//*--- Get Final Exam Questions
 export const getFinalExam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // course ID
@@ -629,7 +993,7 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // ADD: Admin/SuperVisor bypass
+    // Admin/SuperVisor bypass
     const userRole = req.user?.role;
     const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
 
@@ -650,7 +1014,7 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // MODIFY: Only check requirements for regular users
+    // Only check requirements for regular users
     if (!isAdminOrSupervisor) {
       const progress = await getOrCreateProgress(userId, id);
       const chapters = course.chapters as any[];
@@ -749,6 +1113,7 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+//*--- Submit Final Exam + Generate Certificates
 export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExamBody>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // course ID
@@ -838,7 +1203,7 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
       progress.finalExamCooldown.lastAttemptAt = new Date();
     }
 
-    // If passed, mark course as completed and issue certificate
+    // If passed and not completed, issue certificates
     if (passed && !progress.courseCompleted) {
       progress.courseCompleted = true;
       progress.completedAt = new Date();
@@ -851,6 +1216,7 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         res.status(404).json({ message: "User not found" });
         return;
       }
+
       // Generate certificate numbers and codes
       const mainCertNumber = generateCertificateNumber();
       const mainVerifCode = generateVerificationCode();
@@ -891,7 +1257,7 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         verificationCode: mainVerifCode,
         finalExamScore: score,
         issuedAt: new Date(),
-        certificateImageUrl: mainCertificateImageUrl, // ← NEW
+        certificateImageUrl: mainCertificateImageUrl,
       });
 
       // Create HIPAA Certificate
@@ -906,9 +1272,10 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         verificationCode: hipaaVerifCode,
         finalExamScore: score,
         issuedAt: new Date(),
-        certificateImageUrl: hipaaCertificateImageUrl, // ← NEW
+        certificateImageUrl: hipaaCertificateImageUrl,
       });
 
+      // Send certificate email (non-blocking)
       try {
         await sendCertificateEmail(
           user.email,
@@ -948,13 +1315,13 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
             certificateNumber: mainCertificate.certificateNumber,
             verificationCode: mainCertificate.verificationCode,
             issuedAt: mainCertificate.issuedAt,
-            certificateImageUrl: mainCertificate.certificateImageUrl, // ← ADD THIS
+            certificateImageUrl: mainCertificate.certificateImageUrl,
           },
           hipaa: {
             certificateNumber: hipaaCertificate.certificateNumber,
             verificationCode: hipaaCertificate.verificationCode,
             issuedAt: hipaaCertificate.issuedAt,
-            certificateImageUrl: hipaaCertificate.certificateImageUrl, // ← ADD THIS
+            certificateImageUrl: hipaaCertificate.certificateImageUrl,
           },
         },
         results,
@@ -980,6 +1347,11 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
   }
 };
 
+//*=====================================================
+//* CERTIFICATE MANAGEMENT
+//*=====================================================
+
+//*--- Get Single User Certificate (Legacy)
 export const getUserCertificate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { courseId } = req.params;
@@ -993,7 +1365,9 @@ export const getUserCertificate = async (req: Request, res: Response, next: Next
     const certificate = await Certificate.findOne({ userId, courseId });
 
     if (!certificate) {
-      res.status(404).json({ message: "Certificate not found. You may need to complete the course first." });
+      res.status(404).json({
+        message: "Certificate not found. You may need to complete the course first.",
+      });
       return;
     }
 
@@ -1013,6 +1387,65 @@ export const getUserCertificate = async (req: Request, res: Response, next: Next
   }
 };
 
+//*--- Get Both User Certificates (Main + HIPAA)
+export const getUserCertificates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Find all certificates for this user and course
+    const certificates = await Certificate.find({ userId, courseId }).sort({ createdAt: 1 });
+
+    if (certificates.length === 0) {
+      res.status(404).json({
+        message: "Certificates not found. You may need to complete the course first.",
+      });
+      return;
+    }
+
+    // Separate main and HIPAA certificates
+    const mainCertificate = certificates.find((cert) => cert.courseTitle !== "HIPAA for Medical Interpreters");
+    const hipaaCertificate = certificates.find((cert) => cert.courseTitle === "HIPAA for Medical Interpreters");
+
+    res.status(200).json({
+      certificates: {
+        main: mainCertificate
+          ? {
+              certificateNumber: mainCertificate.certificateNumber,
+              verificationCode: mainCertificate.verificationCode,
+              userName: mainCertificate.userName,
+              courseTitle: mainCertificate.courseTitle,
+              completionDate: mainCertificate.completionDate,
+              finalExamScore: mainCertificate.finalExamScore,
+              issuedAt: mainCertificate.issuedAt,
+              certificateImageUrl: mainCertificate.certificateImageUrl,
+            }
+          : null,
+        hipaa: hipaaCertificate
+          ? {
+              certificateNumber: hipaaCertificate.certificateNumber,
+              verificationCode: hipaaCertificate.verificationCode,
+              userName: hipaaCertificate.userName,
+              courseTitle: hipaaCertificate.courseTitle,
+              completionDate: hipaaCertificate.completionDate,
+              finalExamScore: hipaaCertificate.finalExamScore,
+              issuedAt: hipaaCertificate.issuedAt,
+              certificateImageUrl: hipaaCertificate.certificateImageUrl,
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*--- Verify Certificate Authenticity
 export const verifyCertificate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { certificateNumber, verificationCode } = req.query;
@@ -1044,395 +1477,6 @@ export const verifyCertificate = async (req: Request, res: Response, next: NextF
         completionDate: certificate.completionDate,
         issuedAt: certificate.issuedAt,
       },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getDetailedProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { courseId } = req.params;
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    const progress = await getOrCreateProgress(userId, courseId);
-
-    // Get course with chapters and lessons
-    const course = await Course.findById(courseId).populate({
-      path: "chapters",
-      populate: {
-        path: "lessons",
-        select: "title lessonNumber isPublished",
-      },
-    });
-
-    if (!course) {
-      res.status(404).json({ message: "Course not found" });
-      return;
-    }
-
-    // Build detailed progress
-    const chapters = course.chapters as any[];
-    const chaptersProgress = chapters.map((chapter) => {
-      const lessons = chapter.lessons || [];
-
-      const lessonsProgress = lessons.map((lesson: any) => {
-        const completed = progress.completedLessons.find((cl: any) => cl.lessonId.toString() === lesson._id.toString());
-
-        return {
-          lessonId: lesson._id,
-          lessonNumber: lesson.lessonNumber,
-          title: lesson.title,
-          completed: !!completed,
-          quizScore: completed?.quizScore || 0,
-          attempts: completed?.attempts || 0,
-          completedAt: completed?.completedAt || null,
-        };
-      });
-
-      const chapterTestAttempt = progress.chapterTestAttempts.find((attempt: any) => attempt.chapterId.toString() === chapter._id.toString());
-
-      const allLessonsCompleted = lessonsProgress.every((lp: any) => lp.completed);
-      const testPassed = chapterTestAttempt?.passed || false;
-
-      return {
-        chapterId: chapter._id,
-        chapterNumber: chapter.chapterNumber,
-        title: chapter.title,
-        totalLessons: lessonsProgress.length,
-        completedLessons: lessonsProgress.filter((lp: any) => lp.completed).length,
-        allLessonsCompleted,
-        testTaken: !!chapterTestAttempt,
-        testPassed,
-        testScore: chapterTestAttempt?.score || null,
-        testAttemptedAt: chapterTestAttempt?.attemptedAt || null,
-        lessons: lessonsProgress,
-      };
-    });
-
-    // Determine next action
-    let nextAction = null;
-
-    for (const chapter of chaptersProgress) {
-      // Check for incomplete lessons
-      const nextLesson = chapter.lessons.find((l: any) => !l.completed);
-      if (nextLesson) {
-        nextAction = {
-          type: "lesson",
-          chapterNumber: chapter.chapterNumber,
-          lessonNumber: nextLesson.lessonNumber,
-          title: nextLesson.title,
-          message: `Continue with Lesson ${nextLesson.lessonNumber}: ${nextLesson.title}`,
-        };
-        break;
-      }
-
-      // All lessons done, but test not passed
-      if (chapter.allLessonsCompleted && !chapter.testPassed) {
-        nextAction = {
-          type: "chapter-test",
-          chapterNumber: chapter.chapterNumber,
-          title: chapter.title,
-          message: `Take Chapter ${chapter.chapterNumber} Test`,
-        };
-        break;
-      }
-    }
-
-    // All chapters done, check final exam
-    if (!nextAction) {
-      const allChaptersPassed = chaptersProgress.every((c: any) => c.testPassed);
-      const finalExamPassed = progress.finalExamAttempts.some((attempt: any) => attempt.passed);
-
-      if (allChaptersPassed && !finalExamPassed) {
-        nextAction = {
-          type: "final-exam",
-          message: "Take the Final Exam to earn your certificates",
-        };
-      } else if (finalExamPassed) {
-        nextAction = {
-          type: "completed",
-          message: "Congratulations! You've completed the course.",
-        };
-      }
-    }
-
-    // Final exam attempts
-    const finalExamAttempts = progress.finalExamAttempts.map((attempt: any) => ({
-      score: attempt.score,
-      passed: attempt.passed,
-      attemptedAt: attempt.attemptedAt,
-    }));
-
-    res.status(200).json({
-      progress: {
-        currentChapter: progress.currentChapterNumber,
-        currentLesson: progress.currentLessonNumber,
-        courseCompleted: progress.courseCompleted,
-        certificateIssued: progress.certificateIssued,
-        completedAt: progress.completedAt,
-        chapters: chaptersProgress,
-        finalExam: {
-          attempts: finalExamAttempts,
-          passed: progress.finalExamAttempts.some((a: any) => a.passed),
-          bestScore: Math.max(...finalExamAttempts.map((a: any) => a.score), 0),
-        },
-        nextAction,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getUserCertificates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { courseId } = req.params;
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    // Find all certificates for this user and course
-    const certificates = await Certificate.find({ userId, courseId }).sort({ createdAt: 1 });
-
-    if (certificates.length === 0) {
-      res.status(404).json({ message: "Certificates not found. You may need to complete the course first." });
-      return;
-    }
-
-    // Separate main and HIPAA certificates
-    const mainCertificate = certificates.find((cert) => cert.courseTitle !== "HIPAA for Medical Interpreters");
-    const hipaaCertificate = certificates.find((cert) => cert.courseTitle === "HIPAA for Medical Interpreters");
-
-    res.status(200).json({
-      certificates: {
-        main: mainCertificate
-          ? {
-              certificateNumber: mainCertificate.certificateNumber,
-              verificationCode: mainCertificate.verificationCode,
-              userName: mainCertificate.userName,
-              courseTitle: mainCertificate.courseTitle,
-              completionDate: mainCertificate.completionDate,
-              finalExamScore: mainCertificate.finalExamScore,
-              issuedAt: mainCertificate.issuedAt,
-              certificateImageUrl: mainCertificate.certificateImageUrl, // ← ADD THIS
-            }
-          : null,
-        hipaa: hipaaCertificate
-          ? {
-              certificateNumber: hipaaCertificate.certificateNumber,
-              verificationCode: hipaaCertificate.verificationCode,
-              userName: hipaaCertificate.userName,
-              courseTitle: hipaaCertificate.courseTitle,
-              completionDate: hipaaCertificate.completionDate,
-              finalExamScore: hipaaCertificate.finalExamScore,
-              issuedAt: hipaaCertificate.issuedAt,
-              certificateImageUrl: hipaaCertificate.certificateImageUrl, // ← ADD THIS
-            }
-          : null,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const startChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id } = req.params; // chapter ID
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    // Admin/SuperVisor bypass cooldown check
-    const userRole = req.user?.role;
-    const isAdminOrSupervisor = userRole === "Admin" || userRole === "SuperVisor";
-
-    const chapter = await Chapter.findById(id);
-
-    if (!chapter) {
-      res.status(404).json({ message: "Chapter not found" });
-      return;
-    }
-
-    if (!chapter.isPublished) {
-      res.status(403).json({ message: "This chapter is not published yet" });
-      return;
-    }
-
-    // Check if there's an active session
-    const existingSession = await TestSession.findOne({
-      userId,
-      chapterId: id,
-      isActive: true,
-      isSubmitted: false,
-    });
-
-    if (existingSession) {
-      res.status(400).json({
-        message: "You already have an active test session",
-        sessionId: existingSession._id,
-      });
-      return;
-    }
-
-    // Only check cooldown for regular users
-    if (!isAdminOrSupervisor) {
-      const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
-
-      // Check if user completed all lessons in this chapter
-      const chapterLessons = await Lesson.find({ chapterId: id });
-      const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
-      const allLessonsCompleted = chapterLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
-
-      if (!allLessonsCompleted) {
-        res.status(403).json({
-          message: "You must complete all lessons in this chapter before taking the test",
-        });
-        return;
-      }
-
-      // Check cooldown
-      const cooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
-
-      if (cooldown) {
-        const cooldownHours = chapter.chapterTest.cooldownHours;
-        const timeSinceLastAttempt = Date.now() - new Date(cooldown.lastAttemptAt).getTime();
-        const cooldownMs = cooldownHours * 60 * 60 * 1000;
-
-        if (timeSinceLastAttempt < cooldownMs) {
-          const remainingMs = cooldownMs - timeSinceLastAttempt;
-          const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-
-          res.status(403).json({
-            message: "Test is on cooldown",
-            remainingMinutes,
-            canRetakeAt: new Date(Date.now() + remainingMs),
-          });
-          return;
-        }
-      }
-    }
-
-    // Fetch all questions
-    const allQuestions = await Question.find({
-      _id: { $in: chapter.chapterTest.questions },
-    }).select("-correctAnswer -explanation");
-
-    // Randomly select 20 questions (or all if less than 20)
-    const questionsToUse = allQuestions.length > 20 ? allQuestions.sort(() => Math.random() - 0.5).slice(0, 20) : allQuestions;
-
-    // Randomize options for each question
-    const randomizedQuestions = questionsToUse.map((q) => {
-      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
-      return {
-        _id: q._id,
-        questionText: q.questionText,
-        options: shuffledOptions,
-        type: q.type,
-        difficulty: q.difficulty,
-      };
-    });
-
-    // Create test session (40 minutes expiry: 20 questions * 1 min + 20 min buffer)
-    const session = await TestSession.create({
-      userId,
-      chapterId: id,
-      testType: "chapter",
-      questions: randomizedQuestions.map((q) => q._id),
-      answers: randomizedQuestions.map((q) => ({
-        questionId: q._id,
-        selectedAnswer: null,
-        timeSpent: 0,
-      })),
-      startedAt: new Date(),
-      expiresAt: new Date(Date.now() + 40 * 60 * 1000), // 40 minutes
-      isActive: true,
-    });
-
-    res.status(200).json({
-      sessionId: session._id,
-      test: {
-        chapterId: chapter._id,
-        chapterTitle: chapter.title,
-        questions: randomizedQuestions,
-        totalQuestions: randomizedQuestions.length,
-        passingScore: chapter.chapterTest.passingScore,
-        timePerQuestion: 60, // 60 seconds per question
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const abandonChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { id } = req.params; // chapter ID
-    const { sessionId } = req.body;
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    const session = await TestSession.findOne({
-      _id: sessionId,
-      userId,
-      chapterId: id,
-    });
-
-    if (!session) {
-      res.status(404).json({ message: "Test session not found" });
-      return;
-    }
-
-    if (session.isSubmitted) {
-      res.status(400).json({ message: "Test already submitted" });
-      return;
-    }
-
-    // Mark as abandoned
-    session.isAbandoned = true;
-    session.isActive = false;
-    await session.save();
-
-    const chapter = await Chapter.findById(id);
-    if (!chapter) {
-      res.status(404).json({ message: "Chapter not found" });
-      return;
-    }
-
-    // Trigger cooldown
-    const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
-
-    const existingCooldown = progress.chapterTestCooldowns.find((cd: any) => cd.chapterId.toString() === id);
-
-    if (existingCooldown) {
-      existingCooldown.lastAttemptAt = new Date();
-    } else {
-      progress.chapterTestCooldowns.push({
-        chapterId: id as any,
-        lastAttemptAt: new Date(),
-      } as any);
-    }
-
-    await progress.save();
-
-    res.status(200).json({
-      message: "Test abandoned. 3-hour cooldown activated.",
     });
   } catch (error) {
     next(error);
