@@ -3,7 +3,11 @@ import UserProgress from "../models/UserProgress";
 import Lesson from "../models/Lesson";
 import Chapter from "../models/Chapter";
 
-// Check if user can access a specific lesson
+//*=====================================================
+//* LESSON ACCESS CONTROL
+//*=====================================================
+
+//*--- Check Lesson Access Permission
 export const canAccessLesson = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -14,30 +18,31 @@ export const canAccessLesson = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // Admin/SuperVisor bypass
+    // Admin/SuperVisor bypass - full access
     const userRole = req.user?.role;
     if (userRole === "Admin" || userRole === "SuperVisor") {
       res.status(200).json({ canAccess: true, reason: "Admin/SuperVisor access" });
       return;
     }
 
-    // Get lesson and chapter
+    // Get lesson details
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) {
       res.status(404).json({ message: "Lesson not found" });
       return;
     }
 
+    // Get chapter details
     const chapter = await Chapter.findById(lesson.chapterId);
     if (!chapter) {
       res.status(404).json({ message: "Chapter not found" });
       return;
     }
 
-    // Get all lessons in this chapter, sorted by lesson number
+    // Get all lessons in this chapter (sorted by lesson number)
     const allLessonsInChapter = await Lesson.find({ chapterId: chapter._id }).sort({ lessonNumber: 1 });
 
-    // If this is the first lesson of the first chapter, always allow
+    // First lesson of first chapter - always accessible
     if (chapter.chapterNumber === 1 && lesson.lessonNumber === 1) {
       res.status(200).json({ canAccess: true, reason: "First lesson" });
       return;
@@ -53,7 +58,7 @@ export const canAccessLesson = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // Check if this lesson is already completed - always allow re-access
+    // Already completed lessons - always allow re-access
     const isCompleted = progress.completedLessons.some((cl) => cl.lessonId.toString() === lessonId && cl.passed);
 
     if (isCompleted) {
@@ -61,9 +66,8 @@ export const canAccessLesson = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // If this is lesson 1 in current/future chapter, check if previous chapter is done
+    // First lesson of new chapter - check if previous chapter is completed
     if (lesson.lessonNumber === 1 && chapter.chapterNumber > 1) {
-      // Check if all lessons in previous chapter are completed
       const previousChapterNumber = chapter.chapterNumber - 1;
       const previousChapterLessons = await Lesson.find({
         chapterNumber: previousChapterNumber,
@@ -83,12 +87,12 @@ export const canAccessLesson = async (req: Request, res: Response, next: NextFun
       }
     }
 
-    // For lessons 2+, check if previous lesson in same chapter is completed
+    // Lessons 2+ - check if previous lesson in same chapter is completed
     const previousLessonNumber = lesson.lessonNumber - 1;
     const previousLesson = allLessonsInChapter.find((l) => l.lessonNumber === previousLessonNumber);
 
     if (!previousLesson) {
-      // No previous lesson found (shouldn't happen, but allow just in case)
+      // No previous lesson found (edge case fallback)
       res.status(200).json({ canAccess: true, reason: "No previous lesson" });
       return;
     }
@@ -100,7 +104,7 @@ export const canAccessLesson = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // Previous lesson not completed - locked
+    // Previous lesson not completed - access denied
     res.status(403).json({
       canAccess: false,
       message: `Complete Lesson ${previousLessonNumber} first`,
@@ -110,7 +114,11 @@ export const canAccessLesson = async (req: Request, res: Response, next: NextFun
   }
 };
 
-// Check if user can access chapter test
+//*=====================================================
+//* CHAPTER TEST ACCESS CONTROL
+//*=====================================================
+
+//*--- Check Chapter Test Access Permission
 export const canAccessChapterTest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -121,7 +129,7 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
       return;
     }
 
-    // Admin/SuperVisor bypass
+    // Admin/SuperVisor bypass - full access
     const userRole = req.user?.role;
     if (userRole === "Admin" || userRole === "SuperVisor") {
       res.status(200).json({ canAccess: true, reason: "Admin/SuperVisor access" });
@@ -135,7 +143,7 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
       return;
     }
 
-    // Get all lessons in this chapter
+    // Get all lessons in this chapter (sorted by lesson number)
     const lessonsInChapter = await Lesson.find({
       chapterId: chapterId,
     }).sort({ lessonNumber: 1 });
@@ -152,15 +160,14 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
       return;
     }
 
-    // Check if user completed all lessons in this chapter
+    // User is past this chapter - always allow access
     if (progress.currentChapterNumber > chapter.chapterNumber) {
-      // User is past this chapter
       res.status(200).json({ canAccess: true, reason: "Chapter completed" });
       return;
     }
 
+    // User is on this chapter - check if all lessons are completed
     if (progress.currentChapterNumber === chapter.chapterNumber) {
-      // Check if all lessons in this chapter are completed and passed
       const completedLessonsInChapter = progress.completedLessons.filter((cl) => {
         const lessonInChapter = lessonsInChapter.find((l) => l._id.toString() === cl.lessonId.toString());
         return lessonInChapter && cl.passed;
@@ -172,6 +179,7 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
       }
     }
 
+    // Not all lessons completed - access denied
     res.status(403).json({
       canAccess: false,
       message: `Complete all ${totalLessons} lessons first`,
@@ -181,7 +189,11 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
   }
 };
 
-// Check if user can access final exam
+//*=====================================================
+//* FINAL EXAM ACCESS CONTROL
+//*=====================================================
+
+//*--- Check Final Exam Access Permission
 export const canAccessFinalExam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -191,7 +203,7 @@ export const canAccessFinalExam = async (req: Request, res: Response, next: Next
       return;
     }
 
-    // Admin/SuperVisor bypass
+    // Admin/SuperVisor bypass - full access
     const userRole = req.user?.role;
     if (userRole === "Admin" || userRole === "SuperVisor") {
       res.status(200).json({ canAccess: true, reason: "Admin/SuperVisor access" });
@@ -208,7 +220,7 @@ export const canAccessFinalExam = async (req: Request, res: Response, next: Next
       return;
     }
 
-    // Get all chapters to check if all tests are passed
+    // Get all chapters to verify completion
     const allChapters = await Chapter.find({}).sort({ chapterNumber: 1 });
     const totalChapters = allChapters.length;
 
@@ -223,6 +235,7 @@ export const canAccessFinalExam = async (req: Request, res: Response, next: Next
       return;
     }
 
+    // All requirements met - grant access
     res.status(200).json({ canAccess: true, reason: "All requirements met" });
   } catch (error) {
     next(error);
