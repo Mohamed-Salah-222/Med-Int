@@ -51,7 +51,7 @@ function Register() {
     }
 
     try {
-      await authAPI.register(name, email, password);
+      await authAPI.register(name.trim(), email.trim(), password);
       setSuccess(true);
       setTimeout(() => navigate("/verify-email", { state: { email } }), 2000);
     } catch (err: any) {
