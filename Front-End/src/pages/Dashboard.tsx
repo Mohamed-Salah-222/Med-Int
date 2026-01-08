@@ -14,6 +14,7 @@ function Dashboard() {
 
   const [progress, setProgress] = useState<DetailedProgress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
 
   const COURSE_ID = import.meta.env.VITE_COURSE_ID;
@@ -23,6 +24,7 @@ function Dashboard() {
       try {
         const response = await courseAPI.getDetailedProgress(COURSE_ID);
         setProgress(response.data.progress);
+        setError(false);
 
         // Auto-expand the current chapter (first incomplete chapter)
         const currentChapter = response.data.progress.chapters.find((c: any) => !c.testPassed);
@@ -31,6 +33,7 @@ function Dashboard() {
         }
       } catch (error) {
         console.error("Error fetching progress:", error);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -63,11 +66,16 @@ function Dashboard() {
     );
   }
 
-  if (!progress) {
+  if (error || !progress) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
-          <div className="text-xl text-red-600">Failed to load progress. Please try again.</div>
+          <div className="text-center">
+            <div className="text-xl text-red-600 mb-4">Failed to load progress. Please try again.</div>
+            <button onClick={() => window.location.reload()} className="bg-[#7A9D96] text-white px-6 py-2 rounded-lg hover:bg-[#6A8D86] transition-colors">
+              Reload Page
+            </button>
+          </div>
         </div>
       </Layout>
     );
