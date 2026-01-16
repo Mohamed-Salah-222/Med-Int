@@ -147,6 +147,194 @@
   @apply bg-[#FAFAF8];
 }
 
+css.terminology-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 25px 0;
+  font-size: 1.05em;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.terminology-table thead tr {
+  background-color: #7a9d96;
+  color: #ffffff;
+  text-align: left;
+  font-weight: 700;
+  font-size: 1.1em;
+}
+
+.terminology-table th,
+.terminology-table td {
+  padding: 16px 18px;
+  border: 1px solid #ddd;
+  word-wrap: break-word;
+}
+
+.terminology-table tbody tr {
+  border-bottom: 1px solid #dddddd;
+}
+
+.terminology-table tbody tr:nth-of-type(even) {
+  background-color: #f9f9f9;
+}
+
+.terminology-table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.terminology-table tbody td {
+  font-size: 1.05em;
+  line-height: 1.6;
+}
+
+.terminology-table tbody td:first-child {
+  font-weight: 700;
+}
+
+/* For 3-column tables (Term, Definition, Example) */
+.terminology-table thead tr th:first-child:nth-last-child(3),
+.terminology-table thead tr th:first-child:nth-last-child(3) ~ th,
+.terminology-table tbody tr td:first-child:nth-last-child(3),
+.terminology-table tbody tr td:first-child:nth-last-child(3) ~ td {
+  width: 33.33%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(3) {
+  width: 20%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(3) ~ td:nth-child(2) {
+  width: 40%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(3) ~ td:nth-child(3) {
+  width: 40%;
+  font-style: italic;
+  color: #555;
+}
+
+/* For 4-column tables (Prefix, Meaning, Example, Definition) */
+.terminology-table thead tr th:first-child:nth-last-child(4),
+.terminology-table thead tr th:first-child:nth-last-child(4) ~ th,
+.terminology-table tbody tr td:first-child:nth-last-child(4),
+.terminology-table tbody tr td:first-child:nth-last-child(4) ~ td {
+  width: 25%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(4) {
+  width: 15%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(4) ~ td:nth-child(2) {
+  width: 18%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(4) ~ td:nth-child(3) {
+  width: 22%;
+}
+
+.terminology-table tbody tr td:first-child:nth-last-child(4) ~ td:nth-child(4) {
+  width: 45%;
+}
+
+/* Mobile Responsive Design */
+@media screen and (max-width: 768px) {
+  .terminology-table {
+    font-size: 0.9em;
+    table-layout: auto;
+  }
+
+  .terminology-table thead {
+    display: none;
+  }
+
+  .terminology-table tbody tr {
+    display: block;
+    margin-bottom: 20px;
+    border: 2px solid #7a9d96;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .terminology-table tbody td {
+    display: block;
+    width: 100% !important;
+    text-align: left;
+    padding: 12px 15px;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    position: relative;
+    padding-left: 45%;
+  }
+
+  .terminology-table tbody td:last-child {
+    border-bottom: none;
+  }
+
+  .terminology-table tbody td:before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    width: 40%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: 700;
+    color: #7a9d96;
+  }
+
+  .terminology-table tbody td:first-child {
+    background-color: #7a9d96;
+    color: white;
+    font-weight: 700;
+    padding-left: 15px;
+  }
+
+  .terminology-table tbody td:first-child:before {
+    display: none;
+  }
+
+  .terminology-table tbody tr:hover {
+    background-color: transparent;
+  }
+
+  .terminology-table tbody td:nth-child(3) {
+    font-style: normal;
+    color: inherit;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .terminology-table {
+    font-size: 0.85em;
+  }
+
+  .terminology-table th,
+  .terminology-table td {
+    padding: 10px 12px;
+  }
+
+  .terminology-table tbody td {
+    padding: 10px 12px;
+    padding-left: 42%;
+  }
+
+  .terminology-table tbody td:before {
+    left: 12px;
+    width: 38%;
+    font-size: 0.9em;
+  }
+}
+
+.cardiovascular-table tbody td:first-child {
+  width: 20% !important;
+}
+
+.cardiovascular-table tbody td:nth-child(2) {
+  width: 80% !important;
+}
 /* ========================================
    PRINT STYLES
    ======================================== */
