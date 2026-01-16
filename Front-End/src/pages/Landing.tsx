@@ -37,28 +37,28 @@ function Landing() {
           <div className="flex items-center space-x-2">
             {!auth?.token ? (
               <>
-                <button onClick={() => navigate("/login")} className="text-[#2C2C2C] hover:text-[#7A9D96] font-semibold transition-colors px-4 py-2">
+                <button onClick={() => navigate("/login")} className="text-[#2C2C2C] hover:text-[#7A9D96] font-semibold transition-colors px-4 py-2 cursor-pointer">
                   Login
                 </button>
-                <button onClick={() => navigate("/register")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-6 py-2.5 rounded-lg hover:shadow-lg font-semibold transition-all">
+                <button onClick={() => navigate("/register")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-6 py-2.5 rounded-lg hover:shadow-lg font-semibold transition-all cursor-pointer">
                   Get Started
                 </button>
               </>
             ) : (
               <>
-                <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                <button onClick={() => navigate("/dashboard")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all cursor-pointer">
                   <LayoutDashboard className="w-4 h-4" />
                   <span>Dashboard</span>
                 </button>
 
                 {(auth?.user?.role === "Admin" || auth?.user?.role === "SuperVisor") && (
-                  <button onClick={() => navigate("/admin")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all">
+                  <button onClick={() => navigate("/admin")} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-[#2C2C2C] hover:bg-[#7A9D96]/10 hover:text-[#7A9D96] font-semibold transition-all cursor-pointer">
                     <Settings className="w-4 h-4" />
                     <span>Admin</span>
                   </button>
                 )}
 
-                <button onClick={handleLogout} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-semibold transition-all">
+                <button onClick={handleLogout} className="flex items-center space-x-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 font-semibold transition-all cursor-pointer">
                   <LogOut className="w-4 h-4" />
                   <span>Logout</span>
                 </button>
@@ -78,11 +78,11 @@ function Landing() {
               </h1>
               <p className="text-xl text-[#6B6B6B] mb-8 leading-relaxed">Become a certified medical interpreter. Bridge language barriers in healthcare and make a real difference in patients' lives while building a secure, AI-proof career.</p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={() => navigate(auth?.token ? "/dashboard" : "/register")} className="bg-gradient-to-r from-[#2C2C2C] to-[#1A1A1A] text-white px-8 py-4 rounded-lg hover:shadow-2xl font-bold text-lg transition-all flex items-center justify-center space-x-2 group">
+                <button onClick={() => navigate(auth?.token ? "/dashboard" : "/register")} className="bg-gradient-to-r from-[#2C2C2C] to-[#1A1A1A] text-white px-8 py-4 rounded-lg hover:shadow-2xl font-bold text-lg transition-all flex items-center justify-center space-x-2 group cursor-pointer">
                   <span>{auth?.token ? "Go to Dashboard" : "Start Your Journey"}</span>
                   <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </button>
-                <button onClick={() => navigate("/course")} className="border-2 border-[#2C2C2C] text-[#2C2C2C] px-8 py-4 rounded-lg hover:bg-[#2C2C2C] hover:text-white font-bold text-lg transition-all">
+                <button onClick={() => navigate("/course")} className="border-2 border-[#2C2C2C] text-[#2C2C2C] px-8 py-4 rounded-lg hover:bg-[#2C2C2C] hover:text-white font-bold text-lg transition-all cursor-pointer">
                   Explore Course
                 </button>
               </div>
@@ -114,7 +114,7 @@ function Landing() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { value: "$25-45", label: "Hourly Rate", sub: "Industry average" },
+              { value: "$15-25", label: "Hourly Rate", sub: "Industry average" },
               { value: "20%", label: "Job Growth", sub: "Through 2031" },
               { value: "AI-Proof", label: "Career Security", sub: "Cannot be automated" },
               { value: "Dual", label: "Certificates", sub: "Medical + HIPAA" },
@@ -247,7 +247,7 @@ function Landing() {
             Start Your Career Today
           </h2>
           <p className="text-xl text-gray-300 mb-10 leading-relaxed">Join students building meaningful careers while making a real difference in healthcare communication.</p>
-          <button onClick={() => navigate(auth?.token ? "/dashboard" : "/register")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-12 py-5 rounded-lg hover:shadow-2xl font-bold text-lg transition-all inline-flex items-center space-x-3 group">
+          <button onClick={() => navigate(auth?.token ? "/dashboard" : "/register")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-12 py-5 rounded-lg hover:shadow-2xl font-bold text-lg transition-all inline-flex items-center space-x-3 group cursor-pointer">
             <span>{auth?.token ? "Continue Learning" : "Enroll Now"}</span>
             <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
@@ -285,11 +285,6 @@ function Landing() {
                 <li>
                   <a href="/course" className="hover:text-[#7A9D96] transition-colors flex items-center space-x-2">
                     <span>View Course</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="/blog" className="hover:text-[#7A9D96] transition-colors flex items-center space-x-2">
-                    <span>Articles & Resources</span>
                   </a>
                 </li>
                 <li>
@@ -334,7 +329,6 @@ function Landing() {
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-500">© 2025 Medical Interpreter Academy. All rights reserved.</p>
-            <p className="text-xs text-gray-600 mt-4 md:mt-0">Built with care to improve healthcare communication worldwide</p>
           </div>
         </div>
       </footer>
