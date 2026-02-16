@@ -64,6 +64,7 @@ export interface ChapterProgress {
   chapterId: string;
   chapterNumber: number;
   title: string;
+  description: string; // ✅ ADDED
   totalLessons: number;
   completedLessons: number;
   allLessonsCompleted: boolean;
@@ -72,12 +73,16 @@ export interface ChapterProgress {
   testScore: number | null;
   testAttemptedAt: string | null;
   lessons: LessonProgress[];
+  introViewed: boolean; // ✅ ADDED
+  isUnlocked: boolean; // ✅ ADDED
 }
 
 export interface NextAction {
-  type: "lesson" | "chapter-test" | "final-exam" | "completed";
+  type: "chapter-intro" | "lesson" | "chapter-test" | "final-exam" | "completed"; // ✅ ADDED "chapter-intro"
   chapterNumber?: number;
+  chapterId?: string; // ✅ ADDED
   lessonNumber?: number;
+  lessonId?: string; // ✅ ADDED
   title?: string;
   message: string;
 }
@@ -159,6 +164,7 @@ export interface StartTestResponse {
     timePerQuestion: number;
   };
 }
+
 export interface ChapterInfo {
   id: string;
   title: string;
@@ -179,15 +185,4 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
-}
-
-export interface ChapterInfo {
-  id: string;
-  title: string;
-  chapterNumber: number;
-  lessons: {
-    _id: string;
-    title: string;
-    lessonNumber: number;
-  }[];
 }

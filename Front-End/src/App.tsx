@@ -29,6 +29,11 @@ import AdminSettings from "./pages/AdminSettings";
 import VerifyCertificate from "./pages/VerifyCertificate";
 
 import AuthCallback from "./pages/AuthCallback";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import ChapterIntro from "./pages/ChapterIntro";
+
+import Maintenance from "./pages/Maintenance";
 
 function App() {
   return (
@@ -38,6 +43,9 @@ function App() {
           {/* Public Routes (anyone can access) */}
           <Route path="/" element={<Landing />} />
           <Route path="/course" element={<CourseDetail />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/maintenance" element={<Maintenance />} />
 
           {/* Auth Routes (only non-logged-in users) */}
           <Route
@@ -209,6 +217,14 @@ function App() {
             element={
               <ProtectedRoute requireAdmin={true}>
                 <AdminSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chapter/:id/intro"
+            element={
+              <ProtectedRoute requireStudent={true}>
+                <ChapterIntro />
               </ProtectedRoute>
             }
           />

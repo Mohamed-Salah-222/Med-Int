@@ -14,6 +14,8 @@ import glossaryRoutes from "./routes/glossaryRoutes";
 import accessRoutes from "./routes/accessRoutes";
 import chatbotRoutes from "./routes/chatbotRoutes";
 
+import { checkMaintenance } from "./middleware/maintenanceMiddleware";
+
 const app = express();
 
 app.use(express.json());
@@ -26,22 +28,26 @@ app.use(
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
     },
-  })
+  }),
 );
 
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Public routes
 app.use("/api/auth", oauthRoutes);
-
 app.use("/api/auth", authRoutes);
+
+// Admin routes
 app.use("/api/admin", adminRoutes);
-app.use("/api/courses", courseRoutes);
-app.use("/api/glossary", glossaryRoutes);
-app.use("/api/access", accessRoutes);
-app.use("/api/chatbot", chatbotRoutes);
+
+// Protected student routes
+app.use("/api/courses", checkMaintenance, courseRoutes);
+app.use("/api/glossary", checkMaintenance, glossaryRoutes);
+app.use("/api/access", checkMaintenance, accessRoutes);
+app.use("/api/chatbot", checkMaintenance, chatbotRoutes);
 
 //*Error handling middleWare
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

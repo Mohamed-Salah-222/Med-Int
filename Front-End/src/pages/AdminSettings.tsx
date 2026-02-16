@@ -123,7 +123,6 @@ function AdminSettings() {
       setSaveSuccess(true);
       fetchSettings();
 
-      // Hide success message after 3 seconds
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error: any) {
       setError(error.response?.data?.message || "Failed to save settings");
@@ -163,20 +162,18 @@ function AdminSettings() {
 
   return (
     <Layout>
-      <div className="bg-[#FAFAF8] py-8 sm:py-12">
+      <div className="bg-[#FAFAF8] py-8 sm:py-12" style={{ fontFamily: "Lexend, sans-serif" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-2" style={{ fontFamily: "Lexend, sans-serif" }}>
-              Settings
-            </h1>
+          <div className="mb-6">
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-2">Platform Settings</h1>
             <p className="text-[#6B6B6B]">Configure platform settings and preferences</p>
           </div>
 
           {/* Save Success Message */}
           {saveSuccess && (
-            <div className="mb-6 bg-[#7A9D96]/10 border border-[#7A9D96]/30 rounded-xl p-4 flex items-center">
-              <CheckCircle className="w-5 h-5 text-[#7A9D96] mr-3" />
+            <div className="mb-6 bg-[#7A9D96]/10 border border-[#7A9D96]/30 rounded-xl p-4 flex items-center animate-fade-in">
+              <CheckCircle className="w-5 h-5 text-[#7A9D96] mr-3 flex-shrink-0" />
               <span className="text-[#2C2C2C] font-semibold">Settings saved successfully!</span>
             </div>
           )}
@@ -184,7 +181,7 @@ function AdminSettings() {
           {/* Error Message */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
+              <AlertCircle className="w-5 h-5 text-red-600 mr-3 flex-shrink-0" />
               <span className="text-red-800">{error}</span>
             </div>
           )}
@@ -215,7 +212,7 @@ function AdminSettings() {
 
                     <div>
                       <label className="block text-sm font-semibold text-[#2C2C2C] mb-2">Timezone</label>
-                      <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all">
+                      <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all cursor-pointer">
                         <option value="UTC">UTC</option>
                         <option value="America/New_York">Eastern Time (ET)</option>
                         <option value="America/Chicago">Central Time (CT)</option>
@@ -232,7 +229,7 @@ function AdminSettings() {
                         <AlertCircle className="w-5 h-5 text-[#E76F51] mr-3 flex-shrink-0" />
                         <div>
                           <div className="font-semibold text-[#2C2C2C]">Maintenance Mode</div>
-                          <div className="text-sm text-[#6B6B6B]">Disable user access temporarily</div>
+                          <div className="text-sm text-[#6B6B6B]">Blocks all student access (admins can still access)</div>
                         </div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer ml-4">
@@ -323,7 +320,7 @@ function AdminSettings() {
                       </label>
                     </div>
 
-                    <button type="button" onClick={handleTestEmail} className="w-full py-3 border-2 border-[#E8E8E6] text-[#2C2C2C] rounded-lg font-semibold hover:border-[#7A9D96] hover:bg-[#7A9D96]/5 transition-all">
+                    <button type="button" onClick={handleTestEmail} className="w-full py-3 border-2 border-[#E8E8E6] text-[#2C2C2C] rounded-lg font-semibold hover:border-[#7A9D96] hover:bg-[#7A9D96]/5 transition-all cursor-pointer">
                       Send Test Email
                     </button>
                   </div>
@@ -346,7 +343,7 @@ function AdminSettings() {
 
                     <div>
                       <label className="block text-sm font-semibold text-[#2C2C2C] mb-2">Certificate Template</label>
-                      <select value={certificateTemplate} onChange={(e) => setCertificateTemplate(e.target.value)} className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all">
+                      <select value={certificateTemplate} onChange={(e) => setCertificateTemplate(e.target.value)} className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all cursor-pointer">
                         <option value="default">Default Template</option>
                         <option value="professional">Professional Template</option>
                         <option value="modern">Modern Template</option>
@@ -367,7 +364,7 @@ function AdminSettings() {
                 </div>
 
                 {/* Save Button */}
-                <button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-4 rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                <button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-4 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer">
                   <Save className="w-5 h-5" />
                   <span>{saving ? "Saving..." : "Save All Settings"}</span>
                 </button>
@@ -453,7 +450,7 @@ function AdminSettings() {
                   <h2 className="text-lg font-bold">Quick Actions</h2>
                 </div>
                 <div className="space-y-2">
-                  <button onClick={fetchSettings} className="w-full bg-white/20 hover:bg-white/30 text-white py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center">
+                  <button onClick={fetchSettings} className="w-full bg-white/20 hover:bg-white/30 text-white py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center cursor-pointer">
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Refresh Settings
                   </button>

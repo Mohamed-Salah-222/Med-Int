@@ -335,6 +335,88 @@ css.terminology-table {
 .cardiovascular-table tbody td:nth-child(2) {
   width: 80% !important;
 }
+
+.chapter-content {
+  color: #2c2c2c;
+  line-height: 1.8;
+}
+
+.chapter-content h1,
+.chapter-content h2,
+.chapter-content h3,
+.chapter-content h4 {
+  color: #2c2c2c;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-family: "Lexend", sans-serif;
+}
+
+.chapter-content h1 {
+  font-size: 2rem;
+}
+
+.chapter-content h2 {
+  font-size: 1.75rem;
+}
+
+.chapter-content h3 {
+  font-size: 1.5rem;
+}
+
+.chapter-content h4 {
+  font-size: 1.25rem;
+  color: #7a9d96;
+}
+
+.chapter-content p {
+  margin-bottom: 1.25rem;
+  color: #2c2c2c;
+}
+
+.chapter-content ul,
+.chapter-content ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #2c2c2c;
+}
+
+.chapter-content li {
+  margin-bottom: 0.75rem;
+  padding-left: 0.5rem;
+}
+
+.chapter-content ul li {
+  list-style-type: none;
+  position: relative;
+}
+
+.chapter-content ul li::before {
+  content: "●";
+  color: #7a9d96;
+  font-weight: bold;
+  position: absolute;
+  left: -1.25rem;
+}
+
+.chapter-content strong {
+  color: #2c2c2c;
+  font-weight: 700;
+}
+
+.chapter-content em {
+  color: #6b6b6b;
+  font-style: italic;
+}
+
+.chapter-content a {
+  color: #7a9d96;
+  text-decoration: underline;
+}
+
+.chapter-content a:hover {
+  color: #6a8d86;
+}
 /* ========================================
    PRINT STYLES
    ======================================== */

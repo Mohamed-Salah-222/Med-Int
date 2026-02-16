@@ -34,6 +34,7 @@ export interface IUserProgress extends Document {
   completedAt?: Date;
   certificateIssued: boolean;
   certificateIssuedAt?: Date;
+  viewedChapterIntros?: Types.ObjectId[];
 }
 
 const userProgressSchema = new Schema<IUserProgress>(
@@ -136,6 +137,12 @@ const userProgressSchema = new Schema<IUserProgress>(
     certificateIssuedAt: {
       type: Date,
     },
+    viewedChapterIntros: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Chapter",
+      },
+    ],
   },
   { timestamps: true }
 );

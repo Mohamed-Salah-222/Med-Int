@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { courseAPI } from "../services/api";
 import { Question, QuizAnswer, QuizSubmitResponse } from "../types";
-import { CheckCircle, XCircle, Target, ArrowLeft, Trophy, BookOpen, AlertCircle, RefreshCw, X, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, Target, ArrowLeft, Trophy, BookOpen, AlertCircle, RefreshCw, X, AlertTriangle, Award } from "lucide-react";
 import Layout from "../components/Layout";
 
-// Extended response type to include nextLessonId
+// Extended response type to include nextAction
 interface ExtendedQuizSubmitResponse extends QuizSubmitResponse {
-  nextLessonId?: string | null;
+  nextAction?: any;
 }
 
 function QuizView() {
@@ -93,6 +93,8 @@ function QuizView() {
   }
 
   if (submitted && results) {
+    const nextAction = results.nextAction;
+
     return (
       <Layout>
         <div className="min-h-screen bg-[#FAFAF8] py-12">
@@ -175,24 +177,63 @@ function QuizView() {
               </div>
             </div>
 
-            {/* Action Buttons - ALIGNED WITH CONTENT */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4 max-w-4xl mx-auto">
+            {/* Action Buttons - SMART NEXT ACTION */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
               {results.passed ? (
                 <>
-                  <button onClick={() => navigate("/dashboard")} className="bg-white border-2 border-[#E8E8E6] text-[#2C2C2C] px-8 py-3 rounded-xl font-semibold text-base hover:border-[#7A9D96] hover:text-[#7A9D96] hover:shadow-md transition-all flex items-center justify-center space-x-2 group">
-                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                    <span>Back to Dashboard</span>
-                  </button>
+                  {nextAction ? (
+                    <>
+                      {/* Back to Dashboard - LEFT */}
+                      <button onClick={() => navigate("/dashboard")} className="bg-white border-2 border-[#E8E8E6] text-[#2C2C2C] px-8 py-3 rounded-xl font-semibold text-base hover:border-[#7A9D96] hover:text-[#7A9D96] hover:shadow-md transition-all flex items-center justify-center space-x-2 group">
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span>Back to Dashboard</span>
+                      </button>
 
-                  {results.nextLessonId ? (
-                    <button onClick={() => navigate(`/lesson/${results.nextLessonId}`)} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
-                      <span>Continue to Next Lesson</span>
-                      <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
-                    </button>
+                      {/* Smart Next Action Button - RIGHT */}
+                      {nextAction.type === "lesson" && (
+                        <button onClick={() => navigate(`/lesson/${nextAction.lessonId}`)} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
+                          <span>Next Lesson</span>
+                          <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      )}
+
+                      {nextAction.type === "chapter-intro" && (
+                        <button onClick={() => navigate(`/chapter/${nextAction.chapterId}/intro`)} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
+                          <BookOpen className="w-5 h-5" />
+                          <span>Start Next Chapter</span>
+                          <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      )}
+
+                      {nextAction.type === "chapter-test" && (
+                        <button onClick={() => navigate(`/chapter/${nextAction.chapterId}/test`)} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
+                          <Target className="w-5 h-5" />
+                          <span>Take Chapter Test</span>
+                          <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      )}
+
+                      {nextAction.type === "final-exam" && (
+                        <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
+                          <Award className="w-5 h-5" />
+                          <span>Ready for Final Exam</span>
+                          <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      )}
+
+                      {nextAction.type === "completed" && (
+                        <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
+                          <CheckCircle className="w-5 h-5" />
+                          <span>View Certificates</span>
+                          <ArrowLeft className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      )}
+                    </>
                   ) : (
-                    <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>Course Complete!</span>
+                    // Fallback if no nextAction - centered single button
+                    <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold text-base hover:shadow-lg transition-all flex items-center justify-center space-x-2 group mx-auto">
+                      <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                      <span>Back to Dashboard</span>
                     </button>
                   )}
                 </>

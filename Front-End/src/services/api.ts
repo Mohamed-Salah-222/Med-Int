@@ -7,6 +7,7 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
+// Request interceptor (already exists - adds auth token)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,6 +15,19 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response interceptor (NEW - handles maintenance mode)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Check for maintenance mode
+    if (error.response?.status === 503 && error.response?.data?.maintenanceMode) {
+      // Redirect to maintenance page
+      window.location.href = "/maintenance";
+    }
+    return Promise.reject(error);
+  },
+);
 
 export const authAPI = {
   login: (email: string, password: string) => api.post<LoginResponse>("/auth/login", { email, password }),
@@ -46,9 +60,14 @@ export const courseAPI = {
 
   submitChapterTest: (chapterId: string, sessionId: string, answers: QuizAnswer[]) => api.post(`/courses/chapters/${chapterId}/test/submit`, { sessionId, answers }),
 
-  getFinalExam: (courseId: string) => api.get<{ exam: { questions: Question[]; totalQuestions: number; passingScore: number; timeLimit: number } }>(`/courses/${courseId}/exam`),
+  // Chapter Test Session Management
+  startChapterTest: (chapterId: string) => api.post(`/courses/chapters/${chapterId}/test/start`),
+  abandonChapterTest: (chapterId: string, sessionId: string) => api.post(`/courses/chapters/${chapterId}/test/abandon`, { sessionId }),
 
-  submitFinalExam: (courseId: string, answers: QuizAnswer[]) => api.post<ExamSubmitResponse>(`/courses/${courseId}/submit-exam`, { answers }),
+  // Final Exam Session Management (NEW)
+  startFinalExam: (courseId: string) => api.post(`/courses/${courseId}/exam/start`),
+  abandonFinalExam: (courseId: string, sessionId: string) => api.post(`/courses/${courseId}/exam/abandon`, { sessionId }),
+  submitFinalExam: (courseId: string, sessionId: string, answers: QuizAnswer[]) => api.post<ExamSubmitResponse>(`/courses/${courseId}/submit-exam`, { sessionId, answers }),
 
   getCertificate: (courseId: string) => api.get<{ certificate: Certificate }>(`/courses/${courseId}/certificate`),
 
@@ -59,9 +78,6 @@ export const courseAPI = {
   checkChapterTestAccess: (chapterId: string) => api.get(`/access/chapter-test/${chapterId}`),
 
   checkFinalExamAccess: () => api.get("/access/final-exam"),
-
-  startChapterTest: (chapterId: string) => api.post(`/courses/chapters/${chapterId}/test/start`),
-  abandonChapterTest: (chapterId: string, sessionId: string) => api.post(`/courses/chapters/${chapterId}/test/abandon`, { sessionId }),
 
   verifyCertificate: (certificateNumber: string, verificationCode: string) =>
     api.get(`/courses/verify-certificate`, {

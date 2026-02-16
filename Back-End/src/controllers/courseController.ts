@@ -372,6 +372,115 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       }
     }
 
+    // Determine next action after quiz completion
+    let nextAction: any = null;
+
+    if (passed) {
+      const chapter = await Chapter.findById(lesson.chapterId).populate("lessons");
+
+      if (chapter) {
+        const progress = await getOrCreateProgress(userId, chapter.courseId.toString());
+
+        // Get user for admin check
+        const user = await User.findById(userId);
+        const isAdminOrSupervisor = user?.role === "Admin" || user?.role === "SuperVisor";
+
+        // Find current lesson index
+        const currentLessonIndex = chapter.lessons.findIndex((l: any) => l._id.toString() === id);
+
+        // Check if there's a next lesson in this chapter
+        if (currentLessonIndex !== -1 && currentLessonIndex < chapter.lessons.length - 1) {
+          const nextLesson = chapter.lessons[currentLessonIndex + 1] as any;
+
+          if (nextLesson.isPublished) {
+            nextAction = {
+              type: "lesson",
+              chapterNumber: chapter.chapterNumber,
+              lessonNumber: nextLesson.lessonNumber,
+              lessonId: nextLesson._id.toString(),
+              title: nextLesson.title,
+              message: `Continue with Lesson ${nextLesson.lessonNumber}: ${nextLesson.title}`,
+            };
+          }
+        } else {
+          // No more lessons in this chapter - check if chapter test is done
+          const chapterTestAttempt = progress.chapterTestAttempts.find((attempt: any) => attempt.chapterId.toString() === chapter._id.toString());
+
+          if (!chapterTestAttempt || !chapterTestAttempt.passed) {
+            // Chapter test not passed - direct to test
+            nextAction = {
+              type: "chapter-test",
+              chapterNumber: chapter.chapterNumber,
+              chapterId: chapter._id.toString(),
+              title: chapter.title,
+              message: `Take Chapter ${chapter.chapterNumber} Test`,
+            };
+          } else {
+            // Chapter test passed - check next chapter
+            const course = await Course.findById(chapter.courseId).populate({
+              path: "chapters",
+              populate: {
+                path: "lessons",
+                match: { isPublished: true },
+              },
+            });
+
+            if (course) {
+              const currentChapterIndex = course.chapters.findIndex((ch: any) => ch._id.toString() === chapter._id.toString());
+
+              // Check if there's a next chapter
+              if (currentChapterIndex !== -1 && currentChapterIndex < course.chapters.length - 1) {
+                const nextChapter = course.chapters[currentChapterIndex + 1] as any;
+
+                if (nextChapter.isPublished) {
+                  // Check if next chapter intro has been viewed
+                  const nextChapterIntroViewed = progress.viewedChapterIntros?.some((chId: any) => chId.toString() === nextChapter._id.toString());
+
+                  if (!nextChapterIntroViewed && !isAdminOrSupervisor) {
+                    nextAction = {
+                      type: "chapter-intro",
+                      chapterNumber: nextChapter.chapterNumber,
+                      chapterId: nextChapter._id.toString(),
+                      title: nextChapter.title,
+                      message: `Start Chapter ${nextChapter.chapterNumber}: ${nextChapter.title}`,
+                    };
+                  } else if (nextChapter.lessons?.length > 0) {
+                    nextAction = {
+                      type: "lesson",
+                      chapterNumber: nextChapter.chapterNumber,
+                      lessonNumber: nextChapter.lessons[0].lessonNumber,
+                      lessonId: nextChapter.lessons[0]._id.toString(),
+                      title: nextChapter.lessons[0].title,
+                      message: `Continue with Lesson ${nextChapter.lessons[0].lessonNumber}: ${nextChapter.lessons[0].title}`,
+                    };
+                  }
+                }
+              } else {
+                // No more chapters - check final exam
+                const allChaptersPassed = course.chapters.every((ch: any) => {
+                  return progress.chapterTestAttempts.some((attempt: any) => attempt.chapterId.toString() === ch._id.toString() && attempt.passed);
+                });
+
+                const finalExamPassed = progress.finalExamAttempts.some((attempt: any) => attempt.passed);
+
+                if (allChaptersPassed && !finalExamPassed) {
+                  nextAction = {
+                    type: "final-exam",
+                    message: "Take the Final Exam to earn your certificates",
+                  };
+                } else if (finalExamPassed) {
+                  nextAction = {
+                    type: "completed",
+                    message: "Congratulations! You've completed the course.",
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     res.status(200).json({
       score,
       correctCount,
@@ -379,7 +488,7 @@ export const submitLessonQuiz = async (req: Request<{ id: string }, {}, SubmitQu
       passed,
       passingScore: lesson.quiz.passingScore,
       results,
-      nextLessonId,
+      nextAction,
     });
   } catch (error) {
     next(error);
@@ -435,6 +544,10 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
 
     const progress = await getOrCreateProgress(userId, courseId);
 
+    // Check if user is Admin or SuperVisor
+    const user = await User.findById(userId);
+    const isAdminOrSupervisor = user?.role === "Admin" || user?.role === "SuperVisor";
+
     // Get course with chapters and lessons
     const course = await Course.findById(courseId).populate({
       path: "chapters",
@@ -451,7 +564,9 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
 
     // Build detailed progress per chapter
     const chapters = course.chapters as any[];
-    const chaptersProgress = chapters.map((chapter) => {
+
+    // First pass: build basic chapter data
+    const chaptersProgressTemp = chapters.map((chapter) => {
       const lessons = chapter.lessons || [];
 
       const lessonsProgress = lessons.map((lesson: any) => {
@@ -473,10 +588,14 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
       const allLessonsCompleted = lessonsProgress.every((lp: any) => lp.completed);
       const testPassed = chapterTestAttempt?.passed || false;
 
+      // Check if intro viewed
+      const introViewed = progress.viewedChapterIntros?.some((chId: any) => chId.toString() === chapter._id.toString()) || false;
+
       return {
         chapterId: chapter._id,
         chapterNumber: chapter.chapterNumber,
         title: chapter.title,
+        description: chapter.description,
         totalLessons: lessonsProgress.length,
         completedLessons: lessonsProgress.filter((lp: any) => lp.completed).length,
         allLessonsCompleted,
@@ -485,13 +604,54 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
         testScore: chapterTestAttempt?.score || null,
         testAttemptedAt: chapterTestAttempt?.attemptedAt || null,
         lessons: lessonsProgress,
+        introViewed,
+        isUnlocked: false, // Will be set in next pass
       };
     });
 
-    // Determine next action for user
-    let nextAction = null;
+    // Second pass: determine unlock status
+    const chaptersProgress = chaptersProgressTemp.map((chapter, index) => {
+      let isUnlocked = false;
+
+      if (isAdminOrSupervisor) {
+        // Admins can access everything
+        isUnlocked = true;
+      } else if (index === 0) {
+        // First chapter always unlocked
+        isUnlocked = true;
+      } else {
+        // Chapter unlocked if previous chapter test is passed
+        const prevChapter = chaptersProgressTemp[index - 1];
+        isUnlocked = prevChapter.testPassed;
+      }
+
+      return {
+        ...chapter,
+        isUnlocked,
+      };
+    });
+
+    // Determine next action
+    let nextAction: any = null;
 
     for (const chapter of chaptersProgress) {
+      // Skip locked chapters (unless admin)
+      if (!chapter.isUnlocked && !isAdminOrSupervisor) {
+        continue;
+      }
+
+      // Check if intro needs to be viewed
+      if (!chapter.introViewed && !isAdminOrSupervisor) {
+        nextAction = {
+          type: "chapter-intro",
+          chapterNumber: chapter.chapterNumber,
+          chapterId: chapter.chapterId,
+          title: chapter.title,
+          message: `Start Chapter ${chapter.chapterNumber}: ${chapter.title}`,
+        };
+        break;
+      }
+
       // Check for incomplete lessons
       const nextLesson = chapter.lessons.find((l: any) => !l.completed);
       if (nextLesson) {
@@ -499,6 +659,7 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
           type: "lesson",
           chapterNumber: chapter.chapterNumber,
           lessonNumber: nextLesson.lessonNumber,
+          lessonId: nextLesson.lessonId,
           title: nextLesson.title,
           message: `Continue with Lesson ${nextLesson.lessonNumber}: ${nextLesson.title}`,
         };
@@ -510,6 +671,7 @@ export const getDetailedProgress = async (req: Request, res: Response, next: Nex
         nextAction = {
           type: "chapter-test",
           chapterNumber: chapter.chapterNumber,
+          chapterId: chapter.chapterId,
           title: chapter.title,
           message: `Take Chapter ${chapter.chapterNumber} Test`,
         };
@@ -982,8 +1144,8 @@ export const abandonChapterTest = async (req: Request, res: Response, next: Next
 //* FINAL EXAM HANDLING
 //*=====================================================
 
-//*--- Get Final Exam Questions
-export const getFinalExam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+//*--- Start Final Exam Session
+export const startFinalExam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // course ID
     const userId = req.user?.userId;
@@ -1014,6 +1176,23 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
+    // Check if there's an active session already
+    const existingSession = await TestSession.findOne({
+      userId,
+      courseId: id,
+      testType: "final",
+      isActive: true,
+      isSubmitted: false,
+    });
+
+    if (existingSession) {
+      res.status(400).json({
+        message: "You already have an active exam session",
+        sessionId: existingSession._id,
+      });
+      return;
+    }
+
     // Only check requirements for regular users
     if (!isAdminOrSupervisor) {
       const progress = await getOrCreateProgress(userId, id);
@@ -1028,36 +1207,22 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       });
 
       const completedLessonIds = progress.completedLessons.map((cl: any) => cl.lessonId.toString());
-
       const allLessonsCompleted = allLessons.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
 
       if (!allLessonsCompleted) {
-        const incompleteLessons = allLessons.filter((lesson) => !completedLessonIds.includes(lesson._id.toString()));
-
         res.status(403).json({
           message: "You must complete all lessons before taking the final exam",
-          incompleteLessons: incompleteLessons.map((l) => ({
-            lessonNumber: l.lessonNumber,
-            title: l.title,
-          })),
         });
         return;
       }
 
       // Check 2: All chapter tests must be passed
       const passedChapterTests = progress.chapterTestAttempts.filter((attempt: any) => attempt.passed);
-
       const allChaptersPassed = chapters.every((chapter) => passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
 
       if (!allChaptersPassed) {
-        const incompleteChapters = chapters.filter((chapter) => !passedChapterTests.some((attempt: any) => attempt.chapterId.toString() === chapter._id.toString()));
-
         res.status(403).json({
           message: "You must pass all chapter tests before taking the final exam",
-          incompleteChapters: incompleteChapters.map((c: any) => ({
-            chapterNumber: c.chapterNumber,
-            title: c.title,
-          })),
         });
         return;
       }
@@ -1082,12 +1247,18 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       }
     }
 
-    // Fetch questions
-    const questions = await Question.find({
+    // Fetch ALL questions assigned to final exam
+    const allQuestions = await Question.find({
       _id: { $in: course.finalExam.questions as any },
     }).select("-correctAnswer -explanation");
 
-    const randomizedQuestions = questions.map((q) => {
+    // Randomly select 100 questions
+    const EXAM_QUESTION_COUNT = 100;
+    const shuffledQuestions = allQuestions.sort(() => Math.random() - 0.5);
+    const selectedQuestions = shuffledQuestions.slice(0, Math.min(EXAM_QUESTION_COUNT, shuffledQuestions.length));
+
+    // Randomize options for each question
+    const randomizedQuestions = selectedQuestions.map((q) => {
       const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
       return {
         _id: q._id,
@@ -1098,14 +1269,31 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
       };
     });
 
+    // Create exam session (100 minutes expiry - 1 min per question)
+    const session = await TestSession.create({
+      userId,
+      courseId: id,
+      testType: "final",
+      questions: randomizedQuestions.map((q) => q._id),
+      answers: randomizedQuestions.map((q) => ({
+        questionId: q._id,
+        selectedAnswer: null,
+        timeSpent: 0,
+      })),
+      startedAt: new Date(),
+      expiresAt: new Date(Date.now() + 100 * 60 * 1000), // 100 minutes
+      isActive: true,
+    });
+
     res.status(200).json({
+      sessionId: session._id,
       exam: {
         courseId: course._id,
         courseTitle: course.title,
         questions: randomizedQuestions,
         totalQuestions: randomizedQuestions.length,
         passingScore: course.finalExam.passingScore,
-        timeLimit: course.finalExam.timeLimit,
+        timePerQuestion: 60,
       },
     });
   } catch (error) {
@@ -1113,17 +1301,109 @@ export const getFinalExam = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-//*--- Submit Final Exam + Generate Certificates
-export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExamBody>, res: Response, next: NextFunction): Promise<void> => {
+//*--- Abandon Final Exam (Triggers Cooldown)
+export const abandonFinalExam = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params; // course ID
-    const { answers } = req.body;
+    const { sessionId } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
+
+    const session = await TestSession.findOne({
+      _id: sessionId,
+      userId,
+      courseId: id,
+      testType: "final",
+    });
+
+    if (!session) {
+      res.status(404).json({ message: "Exam session not found" });
+      return;
+    }
+
+    if (session.isSubmitted) {
+      res.status(400).json({ message: "Exam already submitted" });
+      return;
+    }
+
+    // Mark as abandoned
+    session.isAbandoned = true;
+    session.isActive = false;
+    await session.save();
+
+    const course = await Course.findById(id);
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    // Trigger cooldown
+    const progress = await getOrCreateProgress(userId, id);
+
+    if (!progress.finalExamCooldown) {
+      progress.finalExamCooldown = { lastAttemptAt: new Date() } as any;
+    } else {
+      progress.finalExamCooldown.lastAttemptAt = new Date();
+    }
+
+    await progress.save();
+
+    res.status(200).json({
+      message: "Final exam abandoned. 24-hour cooldown activated.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*--- Submit Final Exam + Generate Certificates
+export const submitFinalExam = async (req: Request<{ id: string }, {}, { sessionId: string; answers: any[] }>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // course ID
+    const { sessionId, answers } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    // Verify session exists and belongs to user
+    const session = await TestSession.findOne({
+      _id: sessionId,
+      userId,
+      courseId: id,
+      testType: "final",
+    });
+
+    if (!session) {
+      res.status(404).json({ message: "Exam session not found" });
+      return;
+    }
+
+    if (session.isSubmitted) {
+      res.status(400).json({ message: "Exam already submitted" });
+      return;
+    }
+
+    if (session.isAbandoned) {
+      res.status(400).json({ message: "Exam was abandoned" });
+      return;
+    }
+
+    if (!session.isActive) {
+      res.status(400).json({ message: "Exam session expired" });
+      return;
+    }
+
+    // Mark session as submitted
+    session.isSubmitted = true;
+    session.isActive = false;
+    await session.save();
 
     const course = await Course.findById(id);
 
@@ -1132,34 +1412,16 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
       return;
     }
 
-    // Get progress and check cooldown
+    // Get progress
     const progress = await getOrCreateProgress(userId, id);
 
-    if (progress.finalExamCooldown?.lastAttemptAt) {
-      const cooldownHours = course.finalExam.cooldownHours;
-      const timeSinceLastAttempt = Date.now() - new Date(progress.finalExamCooldown.lastAttemptAt).getTime();
-      const cooldownMs = cooldownHours * 60 * 60 * 1000;
-
-      if (timeSinceLastAttempt < cooldownMs) {
-        const remainingMs = cooldownMs - timeSinceLastAttempt;
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
-
-        res.status(403).json({
-          message: "Final exam is on cooldown. You cannot submit another attempt yet.",
-          remainingMinutes,
-          canRetakeAt: new Date(Date.now() + remainingMs),
-        });
-        return;
-      }
-    }
-
-    // Fetch questions
+    // Fetch questions with correct answers (from session questions)
     const questions = await Question.find({
-      _id: { $in: course.finalExam.questions as any },
+      _id: { $in: session.questions },
     });
 
     if (questions.length === 0) {
-      res.status(400).json({ message: "No exam questions found for this course" });
+      res.status(400).json({ message: "No exam questions found" });
       return;
     }
 
@@ -1177,7 +1439,7 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
         results.push({
           questionId: question._id,
           questionText: question.questionText,
-          selectedAnswer: answer.selectedAnswer,
+          selectedAnswer: answer.selectedAnswer || "No answer",
           correctAnswer: question.correctAnswer,
           isCorrect,
           explanation: question.explanation,
@@ -1293,7 +1555,7 @@ export const submitFinalExam = async (req: Request<{ id: string }, {}, SubmitExa
             courseTitle: hipaaCertificate.courseTitle,
             completionDate: hipaaCertificate.completionDate,
             finalExamScore: score,
-          }
+          },
         );
       } catch (emailError) {
         console.error("Failed to send certificate email:", emailError);
@@ -1477,6 +1739,53 @@ export const verifyCertificate = async (req: Request, res: Response, next: NextF
         completionDate: certificate.completionDate,
         issuedAt: certificate.issuedAt,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*--- Mark Chapter Intro as Viewed
+export const markChapterIntroViewed = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params; // chapter ID
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const chapter = await Chapter.findById(id);
+    if (!chapter) {
+      res.status(404).json({ message: "Chapter not found" });
+      return;
+    }
+
+    const progress = await UserProgress.findOne({
+      userId,
+      courseId: chapter.courseId,
+    });
+
+    if (!progress) {
+      res.status(404).json({ message: "Progress not found" });
+      return;
+    }
+
+    // Check if already viewed
+    const alreadyViewed = progress.viewedChapterIntros?.some((chId: any) => chId.toString() === id);
+
+    if (!alreadyViewed) {
+      if (!progress.viewedChapterIntros) {
+        progress.viewedChapterIntros = [];
+      }
+      progress.viewedChapterIntros.push(chapter._id as any);
+      await progress.save();
+    }
+
+    res.status(200).json({
+      message: "Chapter intro viewed",
+      introViewed: true,
     });
   } catch (error) {
     next(error);

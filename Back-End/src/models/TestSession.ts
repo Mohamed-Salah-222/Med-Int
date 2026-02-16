@@ -2,7 +2,8 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ITestSession extends Document {
   userId: Types.ObjectId;
-  chapterId: Types.ObjectId;
+  chapterId?: Types.ObjectId; // Made optional for final exams
+  courseId?: Types.ObjectId; // Added for final exams
   testType: "chapter" | "final";
   questions: Types.ObjectId[];
   answers: {
@@ -27,7 +28,12 @@ const testSessionSchema = new Schema<ITestSession>(
     chapterId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Chapter",
-      required: true,
+      required: false, // Changed to false - optional for final exams
+    },
+    courseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Course",
+      required: false, // Added for final exams
     },
     testType: {
       type: String,
@@ -77,10 +83,10 @@ const testSessionSchema = new Schema<ITestSession>(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-// Auto-expire sessions after 40 minutes (20 questions * 1 min + 20 min buffer)
+// Auto-expire sessions after their expiration time
 testSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const TestSession = mongoose.model<ITestSession>("TestSession", testSessionSchema);

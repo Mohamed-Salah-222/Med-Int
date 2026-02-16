@@ -143,15 +143,23 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
       return;
     }
 
-    // Get all lessons in this chapter (sorted by lesson number)
+    // Get all lessons in this chapter
     const lessonsInChapter = await Lesson.find({
       chapterId: chapterId,
     }).sort({ lessonNumber: 1 });
 
     const totalLessons = lessonsInChapter.length;
 
+    if (totalLessons === 0) {
+      res.status(403).json({
+        canAccess: false,
+        message: "No lessons found in this chapter",
+      });
+      return;
+    }
+
     // Get user progress
-    const progress = await UserProgress.findOne({ userId });
+    const progress = await UserProgress.findOne({ userId, courseId: chapter.courseId });
     if (!progress) {
       res.status(403).json({
         canAccess: false,
@@ -160,29 +168,23 @@ export const canAccessChapterTest = async (req: Request, res: Response, next: Ne
       return;
     }
 
-    // User is past this chapter - always allow access
-    if (progress.currentChapterNumber > chapter.chapterNumber) {
-      res.status(200).json({ canAccess: true, reason: "Chapter completed" });
+    // Check if all lessons in THIS chapter are completed
+    const completedLessonIds = progress.completedLessons.filter((cl) => cl.passed).map((cl) => cl.lessonId.toString());
+
+    const allLessonsCompleted = lessonsInChapter.every((lesson) => completedLessonIds.includes(lesson._id.toString()));
+
+    if (allLessonsCompleted) {
+      res.status(200).json({ canAccess: true, reason: "All lessons completed" });
       return;
     }
 
-    // User is on this chapter - check if all lessons are completed
-    if (progress.currentChapterNumber === chapter.chapterNumber) {
-      const completedLessonsInChapter = progress.completedLessons.filter((cl) => {
-        const lessonInChapter = lessonsInChapter.find((l) => l._id.toString() === cl.lessonId.toString());
-        return lessonInChapter && cl.passed;
-      });
-
-      if (completedLessonsInChapter.length >= totalLessons) {
-        res.status(200).json({ canAccess: true, reason: "All lessons completed" });
-        return;
-      }
-    }
+    // Count how many lessons are actually completed
+    const completedCount = lessonsInChapter.filter((lesson) => completedLessonIds.includes(lesson._id.toString())).length;
 
     // Not all lessons completed - access denied
     res.status(403).json({
       canAccess: false,
-      message: `Complete all ${totalLessons} lessons first`,
+      message: `Complete all ${totalLessons} lessons first. You've completed ${completedCount}/${totalLessons}`,
     });
   } catch (error) {
     next(error);
