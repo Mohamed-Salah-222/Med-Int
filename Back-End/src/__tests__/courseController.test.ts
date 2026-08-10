@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getCourse, getChapter, getLesson, getLessonQuiz, submitLessonQuiz, getUserProgress, getChapterTest, submitChapterTest, getFinalExam, submitFinalExam, getUserCertificate, verifyCertificate, getDetailedProgress, getUserCertificates, startChapterTest, abandonChapterTest } from "../controllers/courseController";
+import { getCourse, getChapter, getLesson, getLessonQuiz, submitLessonQuiz, getUserProgress, getChapterTest, submitChapterTest, submitFinalExam, getUserCertificate, verifyCertificate, getDetailedProgress, getUserCertificates, startChapterTest, abandonChapterTest, startFinalExam } from "../controllers/courseController";
 
 import Course from "../models/Course";
 import Chapter from "../models/Chapter";
@@ -43,11 +43,26 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       json: jest.fn().mockReturnThis(),
     };
     mockNext = jest.fn();
+    (TestSession.findOne as jest.Mock).mockResolvedValue(null);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  const mockActiveFinalExamSession = (questionIds: string[] = ["q1"]) => {
+    const session = {
+      _id: "session123",
+      questions: questionIds,
+      isSubmitted: false,
+      isAbandoned: false,
+      isActive: true,
+      save: jest.fn().mockResolvedValue(true),
+    };
+
+    (TestSession.findOne as jest.Mock).mockResolvedValue(session);
+    return session;
+  };
 
   //*=====================================================
   //* COURSE & CONTENT RETRIEVAL TESTS
@@ -718,10 +733,15 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       await submitLessonQuiz(mockRequest, mockResponse as Response, mockNext);
 
       const response = (mockResponse.json as jest.Mock).mock.calls[0][0];
-      expect(response.nextLessonId).toBe("lesson2");
+      expect(response.nextAction).toEqual(
+        expect.objectContaining({
+          type: "lesson",
+          lessonId: "lesson2",
+        })
+      );
     });
 
-    test("should return null nextLessonId if last lesson in chapter", async () => {
+    test("should recommend chapter test if last lesson in chapter", async () => {
       mockRequest.params = { id: "lesson2" };
       mockRequest.body = {
         answers: [{ questionId: "q1", selectedAnswer: "A" }],
@@ -751,6 +771,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
 
       const mockProgress = {
         completedLessons: [],
+        chapterTestAttempts: [],
         save: jest.fn().mockResolvedValue(true),
       };
 
@@ -767,7 +788,12 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       await submitLessonQuiz(mockRequest, mockResponse as Response, mockNext);
 
       const response = (mockResponse.json as jest.Mock).mock.calls[0][0];
-      expect(response.nextLessonId).toBeNull();
+      expect(response.nextAction).toEqual(
+        expect.objectContaining({
+          type: "chapter-test",
+          chapterId: "chapter123",
+        })
+      );
     });
   });
 
@@ -967,6 +993,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
         completedLessons: [],
         chapterTestAttempts: [],
         finalExamAttempts: [],
+        viewedChapterIntros: ["chapter1"],
         courseCompleted: false,
       };
 
@@ -1003,6 +1030,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
         completedLessons: [{ lessonId: { toString: () => "lesson1" } }, { lessonId: { toString: () => "lesson2" } }],
         chapterTestAttempts: [],
         finalExamAttempts: [],
+        viewedChapterIntros: ["chapter1"],
         courseCompleted: false,
       };
 
@@ -1042,6 +1070,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
         completedLessons: [{ lessonId: { toString: () => "lesson1" } }],
         chapterTestAttempts: [{ chapterId: { toString: () => "chapter1" }, passed: true }],
         finalExamAttempts: [],
+        viewedChapterIntros: ["chapter1"],
         courseCompleted: false,
       };
 
@@ -1078,6 +1107,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
         completedLessons: [{ lessonId: { toString: () => "lesson1" } }],
         chapterTestAttempts: [{ chapterId: { toString: () => "chapter1" }, passed: true }],
         finalExamAttempts: [{ passed: true, score: 95 }],
+        viewedChapterIntros: ["chapter1"],
         courseCompleted: true,
       };
 
@@ -1784,11 +1814,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
   });
 
   //*=====================================================
-  //* FINAL EXAM TESTS (Part 1 - getFinalExam)
+  //* FINAL EXAM TESTS (Part 1 - startFinalExam)
   //*=====================================================
 
-  describe("getFinalExam", () => {
-    test("should return exam questions for eligible user", async () => {
+  describe("startFinalExam", () => {
+    test("should start exam session and return questions for eligible user", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.user = { userId: "user123", role: "Student" };
 
@@ -1836,17 +1866,21 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       (Question.find as jest.Mock).mockReturnValue({
         select: jest.fn().mockResolvedValue(mockQuestions),
       });
+      (TestSession.create as jest.Mock).mockResolvedValue({
+        _id: "session123",
+      });
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith({
+        sessionId: "session123",
         exam: expect.objectContaining({
           courseId: "course123",
           courseTitle: "Medical Interpreter Course",
           totalQuestions: 1,
           passingScore: 75,
-          timeLimit: 60,
+          timePerQuestion: 60,
         }),
       });
     });
@@ -1855,7 +1889,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       mockRequest.params = { id: "course123" };
       mockRequest.user = undefined;
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
     });
@@ -1868,7 +1902,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
         populate: jest.fn().mockResolvedValue(null),
       });
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(404);
     });
@@ -1886,7 +1920,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
         populate: jest.fn().mockResolvedValue(mockCourse),
       });
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(403);
     });
@@ -1920,7 +1954,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       });
       (UserProgress.findOne as jest.Mock).mockResolvedValue(mockProgress);
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(403);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -1960,7 +1994,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       });
       (UserProgress.findOne as jest.Mock).mockResolvedValue(mockProgress);
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(403);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -1999,7 +2033,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       });
       (UserProgress.findOne as jest.Mock).mockResolvedValue(mockProgress);
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(403);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -2042,8 +2076,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       (Question.find as jest.Mock).mockReturnValue({
         select: jest.fn().mockResolvedValue(mockQuestions),
       });
+      (TestSession.create as jest.Mock).mockResolvedValue({
+        _id: "session123",
+      });
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(UserProgress.findOne).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(200);
@@ -2081,8 +2118,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       (Question.find as jest.Mock).mockReturnValue({
         select: jest.fn().mockResolvedValue(mockQuestions),
       });
+      (TestSession.create as jest.Mock).mockResolvedValue({
+        _id: "session123",
+      });
 
-      await getFinalExam(mockRequest, mockResponse as Response, mockNext);
+      await startFinalExam(mockRequest, mockResponse as Response, mockNext);
 
       expect(UserProgress.findOne).not.toHaveBeenCalled();
       expect(mockResponse.status).toHaveBeenCalledWith(200);
@@ -2097,12 +2137,14 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
     test("should grade exam and generate certificates if passed", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.body = {
+        sessionId: "session123",
         answers: [
           { questionId: "q1", selectedAnswer: "A" },
           { questionId: "q2", selectedAnswer: "B" },
         ],
       };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1", "q2"]);
 
       const mockCourse = {
         _id: "course123",
@@ -2191,7 +2233,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
 
     test("should return 401 for unauthenticated users", async () => {
       mockRequest.params = { id: "course123" };
-      mockRequest.body = { answers: [] };
+      mockRequest.body = { sessionId: "session123", answers: [] };
       mockRequest.user = undefined;
 
       await submitFinalExam(mockRequest, mockResponse as Response, mockNext);
@@ -2201,8 +2243,9 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
 
     test("should return 404 for non-existent course", async () => {
       mockRequest.params = { id: "nonexistent" };
-      mockRequest.body = { answers: [] };
+      mockRequest.body = { sessionId: "session123", answers: [] };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession();
 
       (Course.findById as jest.Mock).mockResolvedValue(null);
 
@@ -2211,39 +2254,44 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       expect(mockResponse.status).toHaveBeenCalledWith(404);
     });
 
-    test("should return 403 if cooldown active", async () => {
+    test("should submit active session even if progress has existing cooldown", async () => {
       mockRequest.params = { id: "course123" };
-      mockRequest.body = { answers: [] };
+      mockRequest.body = {
+        sessionId: "session123",
+        answers: [{ questionId: "q1", selectedAnswer: "X" }],
+      };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1"]);
 
       const mockCourse = {
         _id: "course123",
-        finalExam: { cooldownHours: 24 },
+        finalExam: { passingScore: 100, cooldownHours: 24 },
       };
 
       const mockProgress = {
+        finalExamAttempts: [],
         finalExamCooldown: {
           lastAttemptAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
         },
+        courseCompleted: false,
+        save: jest.fn().mockResolvedValue(true),
       };
 
       (Course.findById as jest.Mock).mockResolvedValue(mockCourse);
       (UserProgress.findOne as jest.Mock).mockResolvedValue(mockProgress);
+      (Question.find as jest.Mock).mockResolvedValue([{ _id: "q1", correctAnswer: "A", questionText: "Q", explanation: "E" }]);
 
       await submitFinalExam(mockRequest, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(403);
-      expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Final exam is on cooldown. You cannot submit another attempt yet.",
-        })
-      );
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockProgress.finalExamCooldown.lastAttemptAt).toBeInstanceOf(Date);
     });
 
     test("should return 400 if no questions found", async () => {
       mockRequest.params = { id: "course123" };
-      mockRequest.body = { answers: [] };
+      mockRequest.body = { sessionId: "session123", answers: [] };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1"]);
 
       const mockCourse = {
         _id: "course123",
@@ -2251,6 +2299,7 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
       };
 
       const mockProgress = {
+        finalExamAttempts: [],
         finalExamCooldown: null,
       };
 
@@ -2266,12 +2315,14 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
     test("should not issue certificates if failed", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.body = {
+        sessionId: "session123",
         answers: [
           { questionId: "q1", selectedAnswer: "A" },
           { questionId: "q2", selectedAnswer: "X" },
         ],
       };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1", "q2"]);
 
       const mockCourse = {
         _id: "course123",
@@ -2313,9 +2364,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
     test("should not issue duplicate certificates if already completed", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.body = {
+        sessionId: "session123",
         answers: [{ questionId: "q1", selectedAnswer: "A" }],
       };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1"]);
 
       const mockCourse = {
         _id: "course123",
@@ -2353,9 +2406,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
     test("should handle certificate generation errors gracefully", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.body = {
+        sessionId: "session123",
         answers: [{ questionId: "q1", selectedAnswer: "A" }],
       };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1"]);
 
       const mockCourse = {
         _id: "course123",
@@ -2398,9 +2453,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
     test("should continue if email fails (non-blocking)", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.body = {
+        sessionId: "session123",
         answers: [{ questionId: "q1", selectedAnswer: "A" }],
       };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1"]);
 
       const mockCourse = {
         _id: "course123",
@@ -2456,9 +2513,11 @@ describe("Progress Controller - Student Learning Journey Tests", () => {
     test("should update cooldown after submission", async () => {
       mockRequest.params = { id: "course123" };
       mockRequest.body = {
+        sessionId: "session123",
         answers: [{ questionId: "q1", selectedAnswer: "X" }],
       };
       mockRequest.user = { userId: "user123" };
+      mockActiveFinalExamSession(["q1"]);
 
       const mockCourse = {
         _id: "course123",

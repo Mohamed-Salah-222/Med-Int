@@ -16,6 +16,7 @@ Status: [ready | in progress | in review | done]
 ## Allowed to change
 
 [Explicit file paths. Be tight.]
+docs/tasks/[this task file]
 
 ## Must NOT change
 

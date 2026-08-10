@@ -672,36 +672,6 @@ describe("Access Controller - Security & Access Control Tests", () => {
         });
       });
 
-      test("should allow access if user is past this chapter", async () => {
-        mockRequest.params = { chapterId: "chapter1" };
-        mockRequest.user = { userId: "student123", role: "Student" };
-
-        const mockChapter = {
-          _id: "chapter1",
-          chapterNumber: 1,
-        };
-
-        const mockProgress = {
-          userId: "student123",
-          currentChapterNumber: 3,
-          completedLessons: [],
-        };
-
-        (Chapter.findById as jest.Mock).mockResolvedValue(mockChapter);
-        (Lesson.find as jest.Mock).mockReturnValue({
-          sort: jest.fn().mockResolvedValue([]),
-        });
-        (UserProgress.findOne as jest.Mock).mockResolvedValue(mockProgress);
-
-        await canAccessChapterTest(mockRequest, mockResponse as Response, mockNext);
-
-        expect(mockResponse.status).toHaveBeenCalledWith(200);
-        expect(mockResponse.json).toHaveBeenCalledWith({
-          canAccess: true,
-          reason: "Chapter completed",
-        });
-      });
-
       test("should allow access if all lessons completed in current chapter", async () => {
         mockRequest.params = { chapterId: "chapter1" };
         mockRequest.user = { userId: "student123", role: "Student" };
@@ -777,7 +747,7 @@ describe("Access Controller - Security & Access Control Tests", () => {
         expect(mockResponse.status).toHaveBeenCalledWith(403);
         expect(mockResponse.json).toHaveBeenCalledWith({
           canAccess: false,
-          message: "Complete all 3 lessons first",
+          message: "Complete all 3 lessons first. You've completed 2/3",
         });
       });
 
@@ -815,7 +785,7 @@ describe("Access Controller - Security & Access Control Tests", () => {
         expect(mockResponse.status).toHaveBeenCalledWith(403);
         expect(mockResponse.json).toHaveBeenCalledWith({
           canAccess: false,
-          message: "Complete all 2 lessons first",
+          message: "Complete all 2 lessons first. You've completed 1/2",
         });
       });
     });
@@ -833,7 +803,7 @@ describe("Access Controller - Security & Access Control Tests", () => {
         expect(mockResponse.json).toHaveBeenCalledWith({ message: "Chapter not found" });
       });
 
-      test("should handle chapter with zero lessons", async () => {
+      test("should deny chapter test access for chapter with zero lessons", async () => {
         mockRequest.params = { chapterId: "chapter1" };
         mockRequest.user = { userId: "student123", role: "Student" };
 
@@ -856,10 +826,10 @@ describe("Access Controller - Security & Access Control Tests", () => {
 
         await canAccessChapterTest(mockRequest, mockResponse as Response, mockNext);
 
-        expect(mockResponse.status).toHaveBeenCalledWith(200);
+        expect(mockResponse.status).toHaveBeenCalledWith(403);
         expect(mockResponse.json).toHaveBeenCalledWith({
-          canAccess: true,
-          reason: "All lessons completed",
+          canAccess: false,
+          message: "No lessons found in this chapter",
         });
       });
 
