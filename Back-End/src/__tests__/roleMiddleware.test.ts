@@ -4,7 +4,7 @@ import { isSuperVisor, requireStudent, requireAdmin } from "../middleware/roleMi
 describe("Role Middleware Tests", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let mockNext: jest.Mock; // ✅ Changed from NextFunction to jest.Mock
+  let mockNext: jest.Mock;
 
   beforeEach(() => {
     mockRequest = {

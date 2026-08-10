@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { validationResult } from "express-validator";
+import { Types } from "mongoose";
 import Course from "../models/Course";
 import Chapter from "../models/Chapter";
 import Lesson from "../models/Lesson";
@@ -8,6 +9,8 @@ import User from "../models/User";
 import Certificate from "../models/Certificate";
 import UserProgress from "../models/UserProgress";
 import Settings from "../models/Settings";
+import { generateCertificate } from "../services/certificateGenerator";
+import { generateCertificateNumber, generateVerificationCode } from "../utils/certificateGenerator";
 
 //*=====================================================
 //* TYPE DEFINITIONS
@@ -98,6 +101,12 @@ interface UpdateQuestionBody {
   explanation?: string;
   audioUrl?: string;
   difficulty?: "easy" | "medium" | "hard";
+}
+
+interface GenerateTestCertificateBody {
+  type?: "course" | "hipaa";
+  name?: string;
+  courseId?: string;
 }
 
 //*=====================================================
@@ -1100,6 +1109,9 @@ export const updateUserRole = async (req: Request<{ id: string }, {}, { role: st
     }
 
     user.role = role as any;
+    //* The User pre-save hook bumps tokenVersion on a role change, so every
+    //* token this user already holds stops working here — a demoted admin
+    //* cannot keep using their old privileges until the token expires.
     await user.save();
 
     res.status(200).json({
@@ -1614,11 +1626,119 @@ export const getStatistics = async (req: Request, res: Response, next: NextFunct
 //*--- Get All Certificates
 export const getAllCertificates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const certificates = await Certificate.find().sort({ issuedAt: -1 }).select("certificateNumber userName userEmail courseTitle finalExamScore completionDate issuedAt");
+    const certificates = await Certificate.find().sort({ issuedAt: -1 }).select("certificateNumber verificationCode userName userEmail courseTitle finalExamScore completionDate issuedAt certificateImageUrl isTest");
 
     res.status(200).json({
       total: certificates.length,
       certificates,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*--- Generate Test Certificate
+export const generateTestCertificate = async (req: Request<{}, {}, GenerateTestCertificateBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const adminUserId = (req.user as { userId?: string } | undefined)?.userId;
+
+    if (!adminUserId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const certificateType = req.body.type || "course";
+    if (!["course", "hipaa"].includes(certificateType)) {
+      res.status(400).json({ message: 'Certificate type must be either "course" or "hipaa"' });
+      return;
+    }
+
+    const userName = req.body.name?.trim() || "Test User";
+    const adminUser = await User.findById(adminUserId);
+
+    let course = null;
+    if (req.body.courseId) {
+      if (!Types.ObjectId.isValid(req.body.courseId)) {
+        res.status(400).json({ message: "Invalid course ID" });
+        return;
+      }
+
+      course = await Course.findById(req.body.courseId);
+      if (!course) {
+        res.status(404).json({ message: "Course not found" });
+        return;
+      }
+    } else {
+      course = await Course.findOne().sort({ createdAt: -1 });
+    }
+
+    let certificateNumber = "";
+    let verificationCode = "";
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      certificateNumber = generateCertificateNumber();
+      verificationCode = generateVerificationCode();
+
+      const existingCertificate = await Certificate.exists({
+        $or: [{ certificateNumber }, { verificationCode }],
+      });
+
+      if (!existingCertificate) {
+        break;
+      }
+
+      certificateNumber = "";
+      verificationCode = "";
+    }
+
+    if (!certificateNumber || !verificationCode) {
+      res.status(500).json({ message: "Failed to generate unique certificate identifiers" });
+      return;
+    }
+
+    const issuedAt = new Date();
+    const finalExamScore = 100;
+    const courseTitle = certificateType === "hipaa" ? "HIPAA for Medical Interpreters" : course?.title || "Medical Interpreter Course";
+    const courseId = course?._id || new Types.ObjectId();
+
+    const certificateImageUrl = await generateCertificate({
+      userName,
+      courseTitle,
+      completionDate: issuedAt,
+      certificateNumber,
+      verificationCode,
+      finalExamScore,
+      certificateType,
+    });
+
+    const certificate = await Certificate.create({
+      userId: adminUserId,
+      courseId,
+      userName,
+      userEmail: adminUser?.email || "test-certificate@med-int.local",
+      courseTitle,
+      completionDate: issuedAt,
+      certificateNumber,
+      verificationCode,
+      finalExamScore,
+      issuedAt,
+      certificateImageUrl,
+      isTest: true,
+    });
+
+    res.status(201).json({
+      message: "Test certificate generated successfully",
+      certificate: {
+        id: certificate._id,
+        certificateNumber: certificate.certificateNumber,
+        verificationCode: certificate.verificationCode,
+        userName: certificate.userName,
+        courseTitle: certificate.courseTitle,
+        completionDate: certificate.completionDate,
+        issuedAt: certificate.issuedAt,
+        certificateImageUrl: certificate.certificateImageUrl,
+        isTest: certificate.isTest,
+      },
     });
   } catch (error) {
     next(error);

@@ -25,6 +25,7 @@ import {
   assignQuestions,
   getDashboardStats,
   getAllCertificates,
+  generateTestCertificate,
   getAllUsersProgress,
   getStatistics,
   getAllUsers,
@@ -45,7 +46,7 @@ import { createCourseValidator, createChapterValidator, createLessonValidator, c
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(requireAdmin); // Changed from isSuperVisor
+router.use(requireAdmin);
 
 // Course routes
 router.get("/courses", getAllCourses);
@@ -81,6 +82,7 @@ router.post("/assign-questions", assignQuestionsValidator, assignQuestions);
 
 router.get("/dashboard/stats", getDashboardStats);
 router.get("/dashboard/certificates", getAllCertificates);
+router.post("/certificates/test-generate", generateTestCertificate);
 router.get("/dashboard/users-progress", getAllUsersProgress);
 
 router.get("/statistics", getStatistics);

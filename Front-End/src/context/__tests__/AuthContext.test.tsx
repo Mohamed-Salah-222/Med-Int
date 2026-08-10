@@ -1,4 +1,4 @@
-import { renderHook, waitFor, act } from "@testing-library/react";
+﻿import { renderHook, waitFor, act } from "@testing-library/react";
 import { vi } from "vitest";
 import { AuthProvider, AuthContext } from "../AuthContext";
 import { authAPI } from "../../services/api";
@@ -10,6 +10,8 @@ vi.mock("../../services/api", () => ({
   authAPI: {
     login: vi.fn(),
     getCurrentUser: vi.fn(),
+    // logout() now revokes the token server-side before clearing local state.
+    logout: vi.fn().mockResolvedValue({ data: { message: "Logged out successfully" } }),
   },
 }));
 
@@ -282,6 +284,74 @@ describe("AuthContext", () => {
   });
 
   describe("Logout Function", () => {
+    it("should call the backend to revoke the token, with the token still available", async () => {
+      const mockUser = { id: "9", email: "revoke@example.com", name: "Revoke", role: "Student" as const };
+
+      vi.mocked(authAPI.login).mockResolvedValue(createMockAxiosResponse({ token: "live-token", user: mockUser }));
+      vi.mocked(authAPI.getCurrentUser).mockResolvedValue(createMockAxiosResponse({ user: mockUser }));
+
+      //* Capture what storage looked like when the logout call was made: the
+      //* request interceptor reads localStorage, so clearing first would send an
+      //* unauthenticated request and the server would never revoke anything.
+      let tokenAtCallTime: string | null = "not-checked";
+      vi.mocked(authAPI.logout).mockImplementation(async () => {
+        tokenAtCallTime = localStorageMock.getItem("token");
+        return createMockAxiosResponse({ message: "Logged out successfully" }) as any;
+      });
+
+      const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.login("revoke@example.com", "pass");
+      });
+
+      await act(async () => {
+        await result.current.logout();
+      });
+
+      expect(authAPI.logout).toHaveBeenCalledWith("live-token");
+      expect(tokenAtCallTime).toBe("live-token");
+      expect(localStorageMock.getItem("token")).toBeNull();
+    });
+
+    it("should still clear the local session if the revoke request fails", async () => {
+      const mockUser = { id: "10", email: "offline@example.com", name: "Offline", role: "Student" as const };
+
+      vi.mocked(authAPI.login).mockResolvedValue(createMockAxiosResponse({ token: "offline-token", user: mockUser }));
+      vi.mocked(authAPI.getCurrentUser).mockResolvedValue(createMockAxiosResponse({ user: mockUser }));
+      vi.mocked(authAPI.logout).mockRejectedValue(new Error("Network error"));
+
+      const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.login("offline@example.com", "pass");
+      });
+
+      await act(async () => {
+        await result.current.logout();
+      });
+
+      //* A server that cannot be reached must not trap the user in a session.
+      expect(result.current.user).toBeNull();
+      expect(result.current.token).toBeNull();
+      expect(localStorageMock.getItem("token")).toBeNull();
+    });
+
+    it("should not call the backend when there is no token to revoke", async () => {
+      vi.mocked(authAPI.logout).mockResolvedValue(createMockAxiosResponse({ message: "ok" }) as any);
+
+      const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.logout();
+      });
+
+      expect(authAPI.logout).not.toHaveBeenCalled();
+    });
+
     it("should clear user, token, and localStorage", async () => {
       const mockUser = {
         id: "5",
@@ -322,8 +392,8 @@ describe("AuthContext", () => {
       expect(localStorageMock.getItem("token")).toBe("logout-token");
 
       // Now logout
-      act(() => {
-        result.current.logout();
+      await act(async () => {
+        await result.current.logout();
       });
 
       expect(result.current.user).toBeNull();
@@ -341,8 +411,8 @@ describe("AuthContext", () => {
       });
 
       // Logout without logging in
-      act(() => {
-        result.current.logout();
+      await act(async () => {
+        await result.current.logout();
       });
 
       expect(result.current.user).toBeNull();
@@ -385,8 +455,8 @@ describe("AuthContext", () => {
         expect(result.current.loading).toBe(false);
       });
 
-      act(() => {
-        result.current.logout();
+      await act(async () => {
+        await result.current.logout();
       });
 
       expect(localStorageMock.getItem("token")).toBeNull();
@@ -439,8 +509,8 @@ describe("AuthContext", () => {
       expect(result.current.user).toEqual(mockUser1);
 
       // Logout
-      act(() => {
-        result.current.logout();
+      await act(async () => {
+        await result.current.logout();
       });
 
       expect(result.current.user).toBeNull();

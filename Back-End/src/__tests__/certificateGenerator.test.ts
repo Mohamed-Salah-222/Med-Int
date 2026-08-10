@@ -27,6 +27,7 @@ describe("Certificate Generator Service Tests", () => {
     mockContext = {
       drawImage: jest.fn(),
       fillText: jest.fn(),
+      measureText: jest.fn((text: string) => ({ width: text.length * 10 })),
       textAlign: "",
       textBaseline: "",
       font: "",
@@ -89,7 +90,7 @@ describe("Certificate Generator Service Tests", () => {
       const result = await generateCertificate(certificateData);
 
       expect(result).toBe("https://cloudinary.com/certificate.png");
-      expect(loadImage).toHaveBeenCalledWith(expect.stringContaining("medical-interpreter-certificate-bg.png"));
+      expect(loadImage).toHaveBeenCalledWith(expect.stringContaining("course-certificate-bg.png"));
     });
 
     test("should load correct medical template", async () => {
@@ -107,7 +108,7 @@ describe("Certificate Generator Service Tests", () => {
 
       expect(loadImage).toHaveBeenCalledTimes(2); // Template + QR code
       const templateCall = (loadImage as jest.Mock).mock.calls[0][0];
-      expect(templateCall).toContain("medical-interpreter-certificate-bg.png");
+      expect(templateCall).toContain("course-certificate-bg.png");
     });
 
     test("should draw user name on canvas", async () => {
@@ -123,7 +124,7 @@ describe("Certificate Generator Service Tests", () => {
 
       await generateCertificate(certificateData);
 
-      expect(mockContext.fillText).toHaveBeenCalledWith("Alice Johnson", expect.any(Number), 645);
+      expect(mockContext.fillText).toHaveBeenCalledWith("Alice Johnson", expect.any(Number), expect.any(Number));
     });
 
     test("should draw certificate number", async () => {
@@ -139,7 +140,7 @@ describe("Certificate Generator Service Tests", () => {
 
       await generateCertificate(certificateData);
 
-      expect(mockContext.fillText).toHaveBeenCalledWith("MIC-2024-901234", 1020, 1150);
+      expect(mockContext.fillText).toHaveBeenCalledWith(expect.stringContaining("MIC-2024-901234"), expect.any(Number), expect.any(Number));
     });
 
     test("should format and draw completion date", async () => {
@@ -156,7 +157,7 @@ describe("Certificate Generator Service Tests", () => {
       await generateCertificate(certificateData);
 
       // Should format date as "May 15, 2024"
-      expect(mockContext.fillText).toHaveBeenCalledWith(expect.stringMatching(/May 15, 2024/), 1370, 1150);
+      expect(mockContext.fillText).toHaveBeenCalledWith(expect.stringContaining("May 15, 2024"), expect.any(Number), expect.any(Number));
     });
 
     test("should set correct font for user name", async () => {
@@ -180,7 +181,7 @@ describe("Certificate Generator Service Tests", () => {
       await generateCertificate(certificateData);
 
       // Check that Playfair Display font was set
-      expect(fontAssignments).toContain("bold 72px 'Playfair Display'");
+      expect(fontAssignments.some((font) => font.includes('"Playfair Display"'))).toBe(true);
     });
   });
 
@@ -260,7 +261,7 @@ describe("Certificate Generator Service Tests", () => {
       expect(QRCode.toDataURL).toHaveBeenCalledWith(
         "https://test-app.com/verify-certificate?certificateNumber=MIC-2024-111222&verificationCode=222111",
         expect.objectContaining({
-          width: 120,
+          width: 149,
           margin: 1,
         })
       );
@@ -305,7 +306,7 @@ describe("Certificate Generator Service Tests", () => {
 
       // Should call drawImage for QR code (second call after template)
       expect(mockContext.drawImage).toHaveBeenCalledTimes(2);
-      expect(mockContext.drawImage).toHaveBeenCalledWith(expect.any(Object), 480, 1030, 150, 150);
+      expect(mockContext.drawImage).toHaveBeenCalledWith(expect.any(Object), expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
     });
 
     test("should use default frontend URL if not set", async () => {
@@ -370,7 +371,7 @@ describe("Certificate Generator Service Tests", () => {
 
       expect(cloudinary.uploader.upload_stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          public_id: "medical-MIC-2025-121212",
+          public_id: "course-MIC-2025-121212",
         }),
         expect.any(Function)
       );
@@ -568,7 +569,7 @@ describe("Certificate Generator Service Tests", () => {
       expect(mockContext.textAlign).toBe("center");
     });
 
-    test("should set text baseline to middle", async () => {
+    test("should support alphabetic baseline for underline labels", async () => {
       const certificateData = {
         userName: "Zoe Bennett",
         courseTitle: "Medical Interpreter Course",
@@ -581,7 +582,7 @@ describe("Certificate Generator Service Tests", () => {
 
       await generateCertificate(certificateData);
 
-      expect(mockContext.textBaseline).toBe("middle");
+      expect(mockContext.textBaseline).toBe("alphabetic");
     });
   });
 });

@@ -5,7 +5,10 @@ declare module "express" {
   export interface Request {
     user?: {
       userId: string;
+      //* Populated by authMiddleware from the database, NOT from the JWT.
+      //* Downstream role guards may rely on this being current.
       role: string;
+      tokenVersion?: number;
     };
   }
 }

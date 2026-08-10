@@ -3,15 +3,30 @@ import { register, verify, resendVerification, login, logout, getCurrentUser, fo
 import User from "../models/User";
 import jwt from "jsonwebtoken";
 import { validationResult } from "express-validator";
+import crypto from "crypto";
 import { generateVerificationCode, generateResetToken } from "../utils/generateCode";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../utils/emailService";
+import { sendVerificationEmail, sendPasswordResetEmail, sendAccountExistsEmail } from "../utils/emailService";
 
 // Mock dependencies
 jest.mock("../models/User");
 jest.mock("jsonwebtoken");
 jest.mock("express-validator");
-jest.mock("../utils/generateCode");
+//* Only the random generators are stubbed — hashToken keeps its real
+//* implementation so these tests assert against genuine SHA-256 digests.
+jest.mock("../utils/generateCode", () => ({
+  ...jest.requireActual("../utils/generateCode"),
+  generateVerificationCode: jest.fn(),
+  generateResetToken: jest.fn(),
+}));
 jest.mock("../utils/emailService");
+
+//* Independent SHA-256 so the tests don't just mirror the implementation.
+const sha256 = (value: string): string => crypto.createHash("sha256").update(value).digest("hex");
+
+//* The single reply register and resendVerification give for every account
+//* state. Written out literally rather than imported, so that changing the
+//* controller's copy fails these tests instead of silently moving with them.
+const GENERIC_VERIFICATION_MESSAGE = "If this email address requires verification, a code has been sent. Please check your inbox.";
 
 //*=====================================================
 //* TYPE DEFINITIONS FOR MOCKS
@@ -24,6 +39,7 @@ interface MockUser {
   password?: string;
   role: string;
   isVerified: boolean;
+  tokenVersion?: number;
   verificationCode?: string;
   verificationCodeExpires?: Date;
   passwordResetToken?: string;
@@ -103,16 +119,14 @@ describe("Auth Controller", () => {
           name: mockUserData.name,
           email: mockUserData.email,
           password: mockUserData.password,
-          verificationCode: "123456",
+          verificationCode: sha256("123456"),
         })
       );
+      //* Hash persisted, plaintext emailed.
+      expect(User.create).not.toHaveBeenCalledWith(expect.objectContaining({ verificationCode: "123456" }));
       expect(sendVerificationEmail).toHaveBeenCalledWith(mockUserData.email, "123456", mockUserData.name);
-      expect(mockResponse.status).toHaveBeenCalledWith(201);
-      expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "User created successfully. Please check your email for verification code.",
-        })
-      );
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: GENERIC_VERIFICATION_MESSAGE });
     });
 
     test("should return 400 for validation errors", async () => {
@@ -129,7 +143,7 @@ describe("Auth Controller", () => {
       });
     });
 
-    test("should return 400 if email already verified", async () => {
+    test("should not reveal that an email is already registered and verified", async () => {
       const mockUser: Partial<MockUser> = {
         _id: "user123",
         email: mockUserData.email,
@@ -143,13 +157,18 @@ describe("Auth Controller", () => {
 
       await register(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: "This email is already registered and verified.",
-      });
+      //* Identical reply to the new-signup case.
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: GENERIC_VERIFICATION_MESSAGE });
+      //* No account is touched and no verification code is issued...
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(User.create).not.toHaveBeenCalled();
+      expect(sendVerificationEmail).not.toHaveBeenCalled();
+      //* ...but the real owner is told out-of-band.
+      expect(sendAccountExistsEmail).toHaveBeenCalledWith(mockUserData.email, "John Doe");
     });
 
-    test("should update unverified user and resend code", async () => {
+    test("should resend code without overwriting an unverified user's name or password", async () => {
       const existingUser: Partial<MockUser> = {
         _id: "user123",
         email: mockUserData.email,
@@ -166,17 +185,13 @@ describe("Auth Controller", () => {
 
       await register(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(existingUser.name).toBe(mockUserData.name);
-      expect(existingUser.password).toBe(mockUserData.password);
-      expect(existingUser.verificationCode).toBe("123456");
+      expect(existingUser.name).toBe("Old Name");
+      expect(existingUser.password).toBe("oldpass");
+      expect(existingUser.verificationCode).toBe(sha256("123456"));
       expect(existingUser.save).toHaveBeenCalled();
-      expect(sendVerificationEmail).toHaveBeenCalled();
+      expect(sendVerificationEmail).toHaveBeenCalledWith(mockUserData.email, "123456", "Old Name");
       expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Verification code resent. Please check your email.",
-        })
-      );
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: GENERIC_VERIFICATION_MESSAGE });
     });
 
     test("should set verification code expiry to 10 minutes", async () => {
@@ -233,7 +248,7 @@ describe("Auth Controller", () => {
         name: "John Doe",
         role: "User",
         isVerified: false,
-        verificationCode: "123456",
+        verificationCode: sha256("123456"),
         verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
         save: jest.fn().mockResolvedValue(true),
       };
@@ -259,7 +274,7 @@ describe("Auth Controller", () => {
         name: "John Doe",
         role: "User",
         isVerified: false,
-        verificationCode: "wrongcode",
+        verificationCode: sha256("wrongcode"),
         verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
         save: jest.fn(),
       };
@@ -281,7 +296,7 @@ describe("Auth Controller", () => {
         name: "John Doe",
         role: "User",
         isVerified: false,
-        verificationCode: "123456",
+        verificationCode: sha256("123456"),
         verificationCodeExpires: new Date(Date.now() - 1000),
         save: jest.fn(),
       };
@@ -354,13 +369,15 @@ describe("Auth Controller", () => {
 
       await resendVerification(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockUser.verificationCode).toBe("654321");
+      expect(mockUser.verificationCode).toBe(sha256("654321"));
+      expect(mockUser.verificationCode).not.toBe("654321");
       expect(mockUser.save).toHaveBeenCalled();
       expect(sendVerificationEmail).toHaveBeenCalledWith(mockUser.email, "654321", mockUser.name);
       expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: GENERIC_VERIFICATION_MESSAGE });
     });
 
-    test("should return 400 if email already verified", async () => {
+    test("should not reveal that an email is already verified", async () => {
       const mockUser: Partial<MockUser> = {
         _id: "user123",
         email: "john@example.com",
@@ -374,10 +391,11 @@ describe("Auth Controller", () => {
 
       await resendVerification(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(400);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: "This email is already verified. You can log in.",
-      });
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: GENERIC_VERIFICATION_MESSAGE });
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(sendVerificationEmail).not.toHaveBeenCalled();
+      expect(sendAccountExistsEmail).toHaveBeenCalledWith("john@example.com", "John Doe");
     });
 
     test("should return generic message if user not found", async () => {
@@ -386,9 +404,84 @@ describe("Auth Controller", () => {
       await resendVerification(mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith({
-        message: "If that email exists and is not verified, a new verification code has been sent.",
-      });
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: GENERIC_VERIFICATION_MESSAGE });
+      expect(sendVerificationEmail).not.toHaveBeenCalled();
+      expect(sendAccountExistsEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  //*=====================================================
+  //* ACCOUNT ENUMERATION
+  //*=====================================================
+
+  describe("account enumeration resistance", () => {
+    //* Drives a handler with a fresh response double and reports exactly what
+    //* the caller would observe, so the three account states can be compared.
+    const observe = async (handler: (req: Request, res: Response, next: NextFunction) => Promise<void>, body: object, found: Partial<MockUser> | null) => {
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      (User.findOne as jest.Mock).mockResolvedValue(found);
+      (User.create as jest.Mock).mockResolvedValue({ _id: "new", ...body });
+
+      await handler({ ...mockRequest, body } as Request, res as unknown as Response, mockNext);
+
+      return {
+        status: (res.status as jest.Mock).mock.calls[0]?.[0],
+        body: (res.json as jest.Mock).mock.calls[0]?.[0],
+      };
+    };
+
+    const unverified = (): Partial<MockUser> => ({
+      _id: "user123",
+      email: "john@example.com",
+      name: "Pending Person",
+      role: "User",
+      isVerified: false,
+      save: jest.fn().mockResolvedValue(true),
+    });
+
+    const verified = (): Partial<MockUser> => ({
+      _id: "user123",
+      email: "john@example.com",
+      name: "Verified Person",
+      role: "User",
+      isVerified: true,
+      save: jest.fn().mockResolvedValue(true),
+    });
+
+    test("register replies identically for new, pending and verified emails", async () => {
+      const body = { name: "John Doe", email: "john@example.com", password: "password123" };
+
+      const brandNew = await observe(register, body, null);
+      const pending = await observe(register, body, unverified());
+      const alreadyVerified = await observe(register, body, verified());
+
+      expect(brandNew).toEqual(pending);
+      expect(pending).toEqual(alreadyVerified);
+      expect(brandNew).toEqual({ status: 200, body: { message: GENERIC_VERIFICATION_MESSAGE } });
+    });
+
+    test("resendVerification replies identically for unknown, pending and verified emails", async () => {
+      const body = { email: "john@example.com" };
+
+      const unknown = await observe(resendVerification, body, null);
+      const pending = await observe(resendVerification, body, unverified());
+      const alreadyVerified = await observe(resendVerification, body, verified());
+
+      expect(unknown).toEqual(pending);
+      expect(pending).toEqual(alreadyVerified);
+      expect(unknown).toEqual({ status: 200, body: { message: GENERIC_VERIFICATION_MESSAGE } });
+    });
+
+    test("register and resendVerification cannot be cross-referenced", async () => {
+      //* Both endpoints must answer with the same string, otherwise an attacker
+      //* compares one against the other to recover the account's state.
+      const fromRegister = await observe(register, { name: "John Doe", email: "john@example.com", password: "password123" }, verified());
+      const fromResend = await observe(resendVerification, { email: "john@example.com" }, verified());
+
+      expect(fromRegister).toEqual(fromResend);
     });
   });
 
@@ -414,6 +507,8 @@ describe("Auth Controller", () => {
         email: mockLoginData.email,
         role: "User",
         isVerified: true,
+        //* Signed into the token so authMiddleware can compare it per request.
+        tokenVersion: 3,
         comparePassword: jest.fn().mockResolvedValue(true),
       };
 
@@ -424,7 +519,7 @@ describe("Auth Controller", () => {
 
       await login(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(jwt.sign).toHaveBeenCalledWith({ userId: "user123", role: "User" }, "test-secret", { expiresIn: "1d" });
+      expect(jwt.sign).toHaveBeenCalledWith({ userId: "user123", role: "User", tokenVersion: 3 }, "test-secret", { expiresIn: "1d" });
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -523,13 +618,38 @@ describe("Auth Controller", () => {
   //*=====================================================
 
   describe("logout", () => {
-    test("should return success message", async () => {
+    test("should revoke the caller's tokens and return success", async () => {
+      mockRequest.user = { userId: "user123", role: "Student" };
+      (User.findByIdAndUpdate as jest.Mock).mockResolvedValue({ _id: "user123", tokenVersion: 1 });
+
       await logout(mockRequest as Request, mockResponse as Response, mockNext);
 
+      //* $inc rather than a read-modify-write, so concurrent logouts cannot
+      //* collapse into a single increment.
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith("user123", { $inc: { tokenVersion: 1 } });
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: "Logged out successfully",
       });
+    });
+
+    test("should return 401 when unauthenticated", async () => {
+      mockRequest.user = undefined;
+
+      await logout(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    test("should forward database failures to the error handler", async () => {
+      const dbError = new Error("connection lost");
+      mockRequest.user = { userId: "user123", role: "Student" };
+      (User.findByIdAndUpdate as jest.Mock).mockRejectedValue(dbError);
+
+      await logout(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(dbError);
     });
   });
 
@@ -619,7 +739,9 @@ describe("Auth Controller", () => {
 
       await forgotPassword(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockUser.passwordResetToken).toBe("reset-token-123");
+      //* DB holds only the hash; the plaintext token goes out by email.
+      expect(mockUser.passwordResetToken).toBe(sha256("reset-token-123"));
+      expect(mockUser.passwordResetToken).not.toBe("reset-token-123");
       expect(mockUser.save).toHaveBeenCalled();
       expect(sendPasswordResetEmail).toHaveBeenCalledWith("john@example.com", "reset-token-123", "John Doe");
       expect(mockResponse.status).toHaveBeenCalledWith(200);
@@ -691,7 +813,13 @@ describe("Auth Controller", () => {
 
       await resetPassword(mockRequest as Request, mockResponse as Response, mockNext);
 
+      //* Lookup is by hash of the submitted token, with expiry still in the query.
+      expect(User.findOne).toHaveBeenCalledWith({
+        passwordResetToken: sha256("reset-token-123"),
+        passwordResetExpires: { $gt: expect.any(Date) },
+      });
       expect(mockUser.password).toBe("newPassword456");
+      //* Single-use: the stored hash and expiry are cleared on success.
       expect(mockUser.passwordResetToken).toBeUndefined();
       expect(mockUser.passwordResetExpires).toBeUndefined();
       expect(mockUser.save).toHaveBeenCalled();
@@ -699,6 +827,16 @@ describe("Auth Controller", () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         message: "Password reset successful. You can now log in with your new password.",
       });
+    });
+
+    test("should not find a user when the raw token is stored-value-matched", async () => {
+      //* Guards the regression where the plaintext token is queried directly:
+      //* the query must never contain the un-hashed value.
+      (User.findOne as jest.Mock).mockResolvedValue(null);
+
+      await resetPassword(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(User.findOne).not.toHaveBeenCalledWith(expect.objectContaining({ passwordResetToken: "reset-token-123" }));
     });
 
     test("should return 400 for invalid token", async () => {
@@ -906,7 +1044,7 @@ describe("Auth Controller", () => {
           name: "John Doe",
           role: "User",
           isVerified: false,
-          verificationCode: "123456",
+          verificationCode: sha256("123456"),
           verificationCodeExpires: undefined, // Expiry is null
           save: jest.fn(),
         };
@@ -934,7 +1072,7 @@ describe("Auth Controller", () => {
           name: "John Doe",
           role: "User",
           isVerified: false,
-          verificationCode: "123456",
+          verificationCode: sha256("123456"),
           verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
           save: jest.fn().mockRejectedValue(saveError),
         };
@@ -958,7 +1096,7 @@ describe("Auth Controller", () => {
           name: "John Doe",
           role: "User",
           isVerified: false,
-          verificationCode: "abc123", // Lowercase in DB
+          verificationCode: sha256("abc123"), // Lowercase in DB
           verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
           save: jest.fn(),
         };
@@ -986,7 +1124,7 @@ describe("Auth Controller", () => {
           name: "John Doe",
           role: "User",
           isVerified: false,
-          verificationCode: "123456",
+          verificationCode: sha256("123456"),
           verificationCodeExpires: new Date(Date.now() + 10 * 60 * 1000),
           save: jest.fn(),
         };
@@ -1196,8 +1334,8 @@ describe("Auth Controller", () => {
 
         await forgotPassword(mockRequest as Request, mockResponse as Response, mockNext);
 
-        // Should overwrite old token with new one
-        expect(mockUser.passwordResetToken).toBe("reset-token-123");
+        // Should overwrite old token with the hash of the new one
+        expect(mockUser.passwordResetToken).toBe(sha256("reset-token-123"));
         expect(mockUser.save).toHaveBeenCalled();
       });
     });

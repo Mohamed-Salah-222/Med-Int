@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { Navigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { getRedirectPathForRole } from "../utils/roleRedirect";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -77,14 +78,7 @@ export const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => 
   }
 
   if (auth?.token) {
-    // Redirect based on role
-    if (auth.user?.role === "Admin" || auth.user?.role === "SuperVisor") {
-      return <Navigate to="/admin" />;
-    } else if (auth.user?.role === "Student") {
-      return <Navigate to="/dashboard" />;
-    } else {
-      return <Navigate to="/course" />;
-    }
+    return <Navigate to={getRedirectPathForRole(auth.user?.role)} />;
   }
 
   return <>{children}</>;

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -230,9 +230,9 @@ describe("Landing Page", () => {
       expect(screen.getByRole("button", { name: /start your journey/i })).toBeInTheDocument();
     });
 
-    it('should show "Go to Dashboard" button when logged in', () => {
+    it("should show the condensed welcome view (not the marketing hero) when logged in with course access", () => {
       const authValue = {
-        user: { role: "Student" },
+        user: { role: "Student", name: "Test User" },
         token: "test-token",
         login: vi.fn(),
         loginWithToken: vi.fn(),
@@ -242,7 +242,9 @@ describe("Landing Page", () => {
 
       renderLanding(authValue);
 
-      expect(screen.getByRole("button", { name: /go to dashboard/i })).toBeInTheDocument();
+      // Users with access get a personalized welcome instead of the sales hero.
+      expect(screen.getByRole("heading", { name: /welcome back/i })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /save lives through accurate communication/i })).not.toBeInTheDocument();
     });
 
     it('should navigate to register when "Start Your Journey" clicked', async () => {
@@ -254,10 +256,10 @@ describe("Landing Page", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/register");
     });
 
-    it('should navigate to dashboard when "Go to Dashboard" clicked', async () => {
+    it('should navigate to dashboard from the condensed "Continue Learning" button', async () => {
       const user = userEvent.setup();
       const authValue = {
-        user: { role: "Student" },
+        user: { role: "Student", name: "Test User" },
         token: "test-token",
         login: vi.fn(),
         loginWithToken: vi.fn(),
@@ -267,7 +269,8 @@ describe("Landing Page", () => {
 
       renderLanding(authValue);
 
-      await user.click(screen.getByRole("button", { name: /go to dashboard/i }));
+      const continueButtons = screen.getAllByRole("button", { name: /continue learning/i });
+      await user.click(continueButtons[0]);
 
       expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
     });
@@ -286,7 +289,7 @@ describe("Landing Page", () => {
     it("should display all stats", () => {
       renderLanding();
 
-      expect(screen.getByText("$25-45")).toBeInTheDocument();
+      expect(screen.getByText("$10-25")).toBeInTheDocument();
       expect(screen.getByText("20%")).toBeInTheDocument();
       expect(screen.getByText("AI-Proof")).toBeInTheDocument();
       expect(screen.getByText("Dual")).toBeInTheDocument();
@@ -388,7 +391,8 @@ describe("Landing Page", () => {
     it("should render copyright", () => {
       renderLanding();
 
-      expect(screen.getByText(/© 2025 medical interpreter academy/i)).toBeInTheDocument();
+      const year = new Date().getFullYear();
+      expect(screen.getByText(new RegExp(`© ${year} medical interpreter academy`, "i"))).toBeInTheDocument();
     });
   });
 
@@ -401,6 +405,54 @@ describe("Landing Page", () => {
       await user.click(logos[0]); // Click the nav logo
 
       expect(mockNavigate).toHaveBeenCalledWith("/");
+    });
+  });
+
+  describe("Role-based Rendering", () => {
+    const makeAuth = (role: string) => ({
+      user: { role, name: "Test User" },
+      token: "test-token",
+      login: vi.fn(),
+      loginWithToken: vi.fn(),
+      logout: vi.fn(),
+      loading: false,
+    });
+
+    it('shows the purchase reminder banner and full marketing page for role "User"', () => {
+      renderLanding(makeAuth("User"));
+
+      // Additive banner + still the full marketing hero (not the condensed view).
+      expect(screen.getByText(/complete your enrollment to start the course/i)).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /save lives through accurate communication/i })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
+    });
+
+    it('navigates to /purchase from the "User" purchase banner button', async () => {
+      const user = userEvent.setup();
+      renderLanding(makeAuth("User"));
+
+      // "Buy the Course" appears in both the nav and the banner; both go to /purchase.
+      const buyButtons = screen.getAllByRole("button", { name: /buy the course/i });
+      expect(buyButtons.length).toBeGreaterThan(1);
+      await user.click(buyButtons[buyButtons.length - 1]); // the banner button
+
+      expect(mockNavigate).toHaveBeenCalledWith("/purchase");
+    });
+
+    it("does not show the purchase banner to anonymous visitors or users with access", () => {
+      renderLanding(); // anonymous
+      expect(screen.queryByText(/complete your enrollment to start the course/i)).not.toBeInTheDocument();
+
+      renderLanding(makeAuth("Student"));
+      expect(screen.queryByText(/complete your enrollment to start the course/i)).not.toBeInTheDocument();
+    });
+
+    it("shows the condensed coming-soon strip to users with course access", () => {
+      renderLanding(makeAuth("Admin"));
+
+      expect(screen.getByText(/welcome back, test user/i)).toBeInTheDocument();
+      expect(screen.getByText(/audio practice module/i)).toBeInTheDocument();
+      expect(screen.getByText(/cv & career subscription/i)).toBeInTheDocument();
     });
   });
 });

@@ -12,6 +12,7 @@ export interface ICertificate extends Document {
   finalExamScore: number;
   issuedAt: Date;
   certificateImageUrl?: string;
+  isTest: boolean;
 }
 
 const certificateSchema = new Schema<ICertificate>(
@@ -63,6 +64,10 @@ const certificateSchema = new Schema<ICertificate>(
     certificateImageUrl: {
       type: String,
       required: false,
+    },
+    isTest: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

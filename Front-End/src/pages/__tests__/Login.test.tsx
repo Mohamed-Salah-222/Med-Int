@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+﻿import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -16,7 +16,7 @@ vi.mock("react-router-dom", async () => {
 });
 
 // Helper to render with AuthContext
-const renderLogin = (authValue: any = null) => {
+const renderLogin = (authValue: any = null, initialEntries = ["/login"]) => {
   const defaultAuthValue = {
     user: null,
     token: null,
@@ -27,13 +27,39 @@ const renderLogin = (authValue: any = null) => {
   };
 
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <AuthContext.Provider value={authValue || defaultAuthValue}>
         <Login />
       </AuthContext.Provider>
     </MemoryRouter>
   );
 };
+
+describe("OAuth failure feedback", () => {
+  it("should show an error when redirected back with ?error=oauth_failed", () => {
+    render(
+      <MemoryRouter initialEntries={["/login?error=oauth_failed"]}>
+        <AuthContext.Provider value={{ user: null, token: null, login: vi.fn(), loginWithToken: vi.fn(), logout: vi.fn(), loading: false } as any}>
+          <Login />
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/google sign-in failed/i)).toBeInTheDocument();
+  });
+
+  it("should not show an error on a normal visit", () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthContext.Provider value={{ user: null, token: null, login: vi.fn(), loginWithToken: vi.fn(), logout: vi.fn(), loading: false } as any}>
+          <Login />
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText(/google sign-in failed/i)).not.toBeInTheDocument();
+  });
+});
 
 describe("Login Page", () => {
   let mockLogin: any;
@@ -116,9 +142,9 @@ describe("Login Page", () => {
         loading: false,
       };
 
-      mockLogin.mockImplementation(async () => {
-        authValue.user = { role: "Admin" };
-      });
+      // Redirect must come from the value login() RESOLVES with, not from
+      // context state, which has not re-rendered yet at that point.
+      mockLogin.mockResolvedValue({ role: "Admin" });
 
       renderLogin(authValue);
 
@@ -147,9 +173,9 @@ describe("Login Page", () => {
         loading: false,
       };
 
-      mockLogin.mockImplementation(async () => {
-        authValue.user = { role: "SuperVisor" };
-      });
+      // Redirect must come from the value login() RESOLVES with, not from
+      // context state, which has not re-rendered yet at that point.
+      mockLogin.mockResolvedValue({ role: "SuperVisor" });
 
       renderLogin(authValue);
 
@@ -174,9 +200,9 @@ describe("Login Page", () => {
         loading: false,
       };
 
-      mockLogin.mockImplementation(async () => {
-        authValue.user = { role: "Student" };
-      });
+      // Redirect must come from the value login() RESOLVES with, not from
+      // context state, which has not re-rendered yet at that point.
+      mockLogin.mockResolvedValue({ role: "Student" });
 
       renderLogin(authValue);
 
@@ -201,9 +227,9 @@ describe("Login Page", () => {
         loading: false,
       };
 
-      mockLogin.mockImplementation(async () => {
-        authValue.user = { role: "User" };
-      });
+      // Redirect must come from the value login() RESOLVES with, not from
+      // context state, which has not re-rendered yet at that point.
+      mockLogin.mockResolvedValue({ role: "User" });
 
       renderLogin(authValue);
 
@@ -216,7 +242,9 @@ describe("Login Page", () => {
       });
     });
 
-    it("should redirect to /dashboard for unknown role", async () => {
+    //* Unified with PublicOnlyRoute, which already sent unrecognised roles to
+    //* /course. See utils/roleRedirect.ts for why /course is the safer default.
+    it("should redirect to /course for unknown role", async () => {
       const user = userEvent.setup();
 
       const authValue = {
@@ -228,9 +256,9 @@ describe("Login Page", () => {
         loading: false,
       };
 
-      mockLogin.mockImplementation(async () => {
-        authValue.user = { role: "Unknown" };
-      });
+      // Redirect must come from the value login() RESOLVES with, not from
+      // context state, which has not re-rendered yet at that point.
+      mockLogin.mockResolvedValue({ role: "Unknown" });
 
       renderLogin(authValue);
 
@@ -239,7 +267,7 @@ describe("Login Page", () => {
       await user.click(screen.getByRole("button", { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith("/dashboard");
+        expect(mockNavigate).toHaveBeenCalledWith("/course");
       });
     });
 

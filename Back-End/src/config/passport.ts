@@ -1,19 +1,11 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User";
+import { oauthStateStore } from "./oauthStateStore";
 
-passport.serializeUser((user: any, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
+//* serializeUser/deserializeUser are intentionally absent: they are only ever
+//* called when passport persists a login into a session, and this app runs the
+//* OAuth routes with session: false and authenticates everything else by JWT.
 
 // Google OAuth Strategy
 passport.use(
@@ -22,6 +14,10 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       callbackURL: process.env.GOOGLE_CALLBACK_URL!,
+      //* CSRF protection for the authorization request. `store` takes priority
+      //* over `state: true` in passport-oauth2, which would otherwise install a
+      //* session-backed store and throw without express-session.
+      store: oauthStateStore,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

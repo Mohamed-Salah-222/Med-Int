@@ -1,6 +1,8 @@
-import { useState, useContext } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useContext, useEffect } from "react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { GOOGLE_OAUTH_URL } from "../services/api";
+import { getRedirectPathForRole } from "../utils/roleRedirect";
 import { LogIn, AlertCircle, ArrowRight, Shield, Eye, EyeOff, CheckCircle, Award, BookOpen } from "lucide-react";
 
 function Login() {
@@ -10,7 +12,18 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const auth = useContext(AuthContext);
+
+  // A failed Google sign-in lands back here as ?error=oauth_failed — sent both
+  // by passport's failureRedirect in oauth.routes.ts and by AuthCallback when
+  // the returned token does not validate. Without this the page looked as if
+  // nothing had happened.
+  useEffect(() => {
+    if (searchParams.get("error") === "oauth_failed") {
+      setError("Google sign-in failed. Please try again, or sign in with your email and password.");
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,21 +31,13 @@ function Login() {
     setLoading(true);
 
     try {
-      await auth?.login(email, password);
+      // Use the user returned by login() rather than auth.user: the context
+      // state has not re-rendered yet at this point, so reading auth.user here
+      // would see the *previous* value (null on a first sign-in) and always
+      // fall through to the default redirect.
+      const loggedInUser = await auth?.login(email, password);
 
-      // Smart redirect based on user role
-      const userRole = auth?.user?.role;
-
-      if (userRole === "Admin" || userRole === "SuperVisor") {
-        navigate("/admin");
-      } else if (userRole === "Student") {
-        navigate("/dashboard");
-      } else if (userRole === "User") {
-        navigate("/course");
-      } else {
-        // Fallback to dashboard
-        navigate("/dashboard");
-      }
+      navigate(getRedirectPathForRole(loggedInUser?.role));
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid email or password");
     } finally {
@@ -41,7 +46,7 @@ function Login() {
   };
 
   const handleGoogleSignIn = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+    window.location.href = GOOGLE_OAUTH_URL;
   };
 
   return (

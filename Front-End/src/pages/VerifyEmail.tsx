@@ -6,11 +6,14 @@ import { Mail, CheckCircle, AlertCircle, ArrowRight, Shield, RefreshCw, Sparkles
 function VerifyEmail() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
+  const [resendSuccess, setResendSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  // Router state is lost on refresh, direct navigation and bookmarks, so this
+  // is empty more often than the happy path suggests.
   const email = location.state?.email || "";
 
   const handleChange = (index: number, value: string) => {
@@ -56,7 +59,15 @@ function VerifyEmail() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setResendSuccess(false);
     const fullCode = code.join("");
+
+    // Belt and braces: the form is not rendered without an email, but never
+    // send the backend an empty address.
+    if (!email) {
+      setError("We don't know which email address to verify. Please start from the registration page.");
+      return;
+    }
 
     if (fullCode.length !== 6) {
       setError("Please enter all 6 digits");
@@ -79,14 +90,19 @@ function VerifyEmail() {
   };
 
   const handleResend = async () => {
+    if (!email) {
+      setError("We don't know which email address to verify. Please start from the registration page.");
+      return;
+    }
+
     setResending(true);
     setError("");
+    setResendSuccess(false);
     try {
       await authAPI.resendVerification(email);
       setCode(["", "", "", "", "", ""]);
       document.getElementById("code-0")?.focus();
-      // Show success message instead of alert
-      setError("");
+      setResendSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to resend code");
     } finally {
@@ -128,6 +144,41 @@ function VerifyEmail() {
     );
   }
 
+  // Reached by refresh, bookmark or direct navigation — there is no address to
+  // verify, so send the user somewhere that can give them one rather than
+  // showing a form that cannot work.
+  if (!email) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAFAF8]">
+        <div className="w-full max-w-md text-center">
+          <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-6">
+            <Mail className="w-7 h-7 text-white" strokeWidth={2} />
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
+            Verification link expired
+          </h1>
+
+          <div role="alert" className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg mb-6 flex items-start text-sm text-left">
+            <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+            <span>We don't know which email address to verify. This usually happens after refreshing or opening this page directly. Please register again, or sign in if you already have an account.</span>
+          </div>
+
+          <div className="space-y-3">
+            <Link to="/register" className="w-full bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2">
+              <span>Back to Register</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <Link to="/login" className="w-full border-2 border-[#E8E8E6] text-[#6B6B6B] py-3 rounded-lg font-semibold hover:border-[#7A9D96] hover:text-[#7A9D96] transition-all duration-300 flex items-center justify-center">
+              <span>Go to Login</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* LEFT SIDE - Form */}
@@ -153,9 +204,17 @@ function VerifyEmail() {
 
           {/* Alert */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-6 flex items-start text-sm animate-shake">
+            <div role="alert" className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-6 flex items-start text-sm animate-shake">
               <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* Resend confirmation */}
+          {resendSuccess && (
+            <div role="status" className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg mb-6 flex items-start text-sm">
+              <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+              <span>Code sent! Check your inbox for a new verification code.</span>
             </div>
           )}
 

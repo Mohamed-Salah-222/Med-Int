@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 
+//* These guards read req.user.role, which authMiddleware populates from the
+//* database on every request — never from the JWT payload. That is what makes
+//* them safe against a stale token carrying a role the user no longer holds.
+//* They must therefore only ever be mounted *after* authMiddleware.
+
 export const isSuperVisor = (req: Request, res: Response, next: NextFunction) => {
   const userRole = req.user?.role;
 

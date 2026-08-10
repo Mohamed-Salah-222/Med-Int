@@ -205,10 +205,10 @@ function ChapterTestView() {
   if (accessLoading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]">
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F7F5]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#7A9D96] mx-auto mb-4"></div>
-            <p className="text-xl text-[#6B6B6B] font-semibold">Checking access...</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#1B3A5C] mx-auto mb-4"></div>
+            <p className="text-xl text-[#5A5A5A] font-semibold">Checking access...</p>
           </div>
         </div>
       </Layout>
@@ -218,14 +218,14 @@ function ChapterTestView() {
   if (!accessAllowed) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] p-6">
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F7F5] p-6">
           <div className="text-center max-w-md">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-[#2C2C2C] mb-4">Chapter Test Locked</h2>
-            <p className="text-[#6B6B6B] mb-6">{error}</p>
-            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+            <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">Chapter Test Locked</h2>
+            <p className="text-[#5A5A5A] mb-6">{error}</p>
+            <button onClick={() => navigate("/dashboard")} className="bg-[#1B3A5C] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#16304d] transition-all">
               Back to Dashboard
             </button>
           </div>
@@ -237,11 +237,11 @@ function ChapterTestView() {
   if (error && !testStarted) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] p-6">
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F7F5] p-6">
           <div className="text-center max-w-md">
-            <Clock className="w-20 h-20 text-[#7A9D96] mx-auto mb-6" strokeWidth={1.5} />
-            <h2 className="text-2xl font-bold text-[#2C2C2C] mb-4">{error}</h2>
-            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+            <Clock className="w-20 h-20 text-[#1B3A5C] mx-auto mb-6" strokeWidth={1.5} />
+            <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4">{error}</h2>
+            <button onClick={() => navigate("/dashboard")} className="bg-[#1B3A5C] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#16304d] transition-all">
               Back to Dashboard
             </button>
           </div>
@@ -254,17 +254,17 @@ function ChapterTestView() {
   if (error && submitted && !results) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] p-6">
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F7F5] p-6">
           <div className="text-center max-w-md">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertTriangle className="w-10 h-10 text-red-600" />
             </div>
-            <h2 className="text-3xl font-bold text-[#2C2C2C] mb-4">Test Abandoned</h2>
-            <p className="text-lg text-[#6B6B6B] mb-2">{error}</p>
+            <h2 className="text-3xl font-bold text-[#1A1A1A] mb-4">Test Abandoned</h2>
+            <p className="text-lg text-[#5A5A5A] mb-2">{error}</p>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-red-800">You must wait 3 hours before attempting this test again.</p>
             </div>
-            <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+            <button onClick={() => navigate("/dashboard")} className="bg-[#1B3A5C] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#16304d] transition-all">
               Back to Dashboard
             </button>
           </div>
@@ -277,71 +277,71 @@ function ChapterTestView() {
   if (submitted && results) {
     return (
       <Layout>
-        <div className="bg-[#FAFAF8] py-12">
+        <div className="bg-[#F7F7F5] py-12">
           <div className="max-w-4xl mx-auto px-6">
-            {/* Results Summary - WARM COLORS */}
-            <div className={`rounded-2xl shadow-lg p-8 mb-8 relative overflow-hidden border-2 ${results.passed ? "bg-gradient-to-br from-[#7A9D96]/10 to-[#6A8D86]/5 border-[#7A9D96]" : "bg-gradient-to-br from-[#E76F51]/10 to-orange-100/50 border-[#E76F51]"}`}>
+            {/* Results Summary - flat tints */}
+            <div className={`rounded-2xl shadow-lg p-8 mb-8 relative overflow-hidden border-2 ${results.passed ? "bg-[#1B3A5C]/5 border-[#1B3A5C]" : "bg-[#E76F51]/10 border-[#E76F51]"}`}>
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/30 rounded-full blur-3xl"></div>
               <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/30 rounded-full blur-3xl"></div>
 
               <div className="text-center relative z-10">
                 <div className="mb-4 inline-block">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${results.passed ? "bg-gradient-to-br from-[#7A9D96] to-[#6A8D86]" : "bg-gradient-to-br from-[#E76F51] to-orange-500"}`}>{results.passed ? <Trophy className="w-8 h-8 text-white" strokeWidth={2} /> : <BookOpen className="w-8 h-8 text-white" strokeWidth={2} />}</div>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${results.passed ? "bg-[#1B3A5C]" : "bg-[#E76F51]"}`}>{results.passed ? <Trophy className="w-8 h-8 text-white" strokeWidth={2} /> : <BookOpen className="w-8 h-8 text-white" strokeWidth={2} />}</div>
                 </div>
 
-                <h1 className="text-3xl font-bold mb-3 text-[#2C2C2C]" style={{ fontFamily: "Lexend, sans-serif" }}>
+                <h1 className="text-3xl font-bold mb-3 text-[#1A1A1A]" style={{ fontFamily: "Lexend, sans-serif" }}>
                   {results.passed ? "Chapter Test Passed" : "Keep Studying"}
                 </h1>
 
                 <div className="mb-4">
-                  <div className="text-6xl font-bold text-[#2C2C2C] mb-2">{results.score}%</div>
-                  <p className="text-lg text-[#6B6B6B]">
+                  <div className="text-6xl font-bold text-[#1A1A1A] mb-2">{results.score}%</div>
+                  <p className="text-lg text-[#5A5A5A]">
                     {results.correctCount} out of {results.totalQuestions} correct
                   </p>
                 </div>
 
-                {results.passed ? <p className="text-base text-[#7A9D96] font-semibold bg-white/80 inline-block px-6 py-2 rounded-full">Great work! You can now proceed to the next chapter</p> : <p className="text-base text-[#E76F51] font-semibold bg-white/80 inline-block px-6 py-2 rounded-full">Pass score: {results.passingScore}% • Wait 3 hours to retry</p>}
+                {results.passed ? <p className="text-base text-[#1B3A5C] font-semibold bg-white/80 inline-block px-6 py-2 rounded-full">Great work! You can now proceed to the next chapter</p> : <p className="text-base text-[#E76F51] font-semibold bg-white/80 inline-block px-6 py-2 rounded-full">Pass score: {results.passingScore}% • Wait 3 hours to retry</p>}
               </div>
             </div>
 
             {/* Question Results - REFINED */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E8E8E6]">
-              <h2 className="text-2xl font-bold text-[#2C2C2C] mb-6 flex items-center" style={{ fontFamily: "Lexend, sans-serif" }}>
-                <Target className="w-7 h-7 text-[#7A9D96] mr-3" />
+            <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-[#E5E5E3]">
+              <h2 className="text-2xl font-bold text-[#1A1A1A] mb-6 flex items-center" style={{ fontFamily: "Lexend, sans-serif" }}>
+                <Target className="w-7 h-7 text-[#1B3A5C] mr-3" />
                 Detailed Review
               </h2>
               <div className="space-y-4">
                 {results.results.map((result, index) => (
-                  <div key={result.questionId} className={`p-6 rounded-xl border-2 transition-all hover:shadow-md ${result.isCorrect ? "bg-[#7A9D96]/5 border-[#7A9D96]/30" : "bg-[#E76F51]/5 border-[#E76F51]/30"}`}>
+                  <div key={result.questionId} className={`p-6 rounded-xl border-2 transition-all hover:shadow-md ${result.isCorrect ? "bg-[#1B3A5C]/5 border-[#1B3A5C]/30" : "bg-[#E76F51]/5 border-[#E76F51]/30"}`}>
                     <div className="flex items-start mb-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mr-4 ${result.isCorrect ? "bg-[#7A9D96]" : "bg-[#E76F51]"}`}>{result.isCorrect ? <CheckCircle className="w-6 h-6 text-white" strokeWidth={3} /> : <XCircle className="w-6 h-6 text-white" strokeWidth={3} />}</div>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 mr-4 ${result.isCorrect ? "bg-[#1B3A5C]" : "bg-[#E76F51]"}`}>{result.isCorrect ? <CheckCircle className="w-6 h-6 text-white" strokeWidth={3} /> : <XCircle className="w-6 h-6 text-white" strokeWidth={3} />}</div>
                       <div className="flex-1">
                         <div className="flex items-center mb-3">
-                          <span className="font-bold text-lg text-[#2C2C2C] mr-3">Question {index + 1}</span>
-                          <span className={`text-xs px-3 py-1 rounded-full font-bold ${result.isCorrect ? "bg-[#7A9D96] text-white" : "bg-[#E76F51] text-white"}`}>{result.isCorrect ? "Correct" : "Incorrect"}</span>
+                          <span className="font-bold text-lg text-[#1A1A1A] mr-3">Question {index + 1}</span>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold ${result.isCorrect ? "bg-[#1B3A5C] text-white" : "bg-[#E76F51] text-white"}`}>{result.isCorrect ? "Correct" : "Incorrect"}</span>
                         </div>
-                        <p className="text-[#2C2C2C] text-base mb-4 leading-relaxed">{result.questionText}</p>
+                        <p className="text-[#1A1A1A] text-base mb-4 leading-relaxed">{result.questionText}</p>
 
                         <div className="space-y-3">
-                          <div className={`p-3 rounded-lg font-semibold border-2 ${result.isCorrect ? "bg-[#7A9D96]/10 border-[#7A9D96]/30 text-[#7A9D96]" : "bg-[#E76F51]/10 border-[#E76F51]/30 text-[#E76F51]"}`}>
+                          <div className={`p-3 rounded-lg font-semibold border-2 ${result.isCorrect ? "bg-[#1B3A5C]/10 border-[#1B3A5C]/30 text-[#1B3A5C]" : "bg-[#E76F51]/10 border-[#E76F51]/30 text-[#E76F51]"}`}>
                             <span className="text-sm opacity-75">Your answer:</span>
                             <div className="text-base mt-1">{result.selectedAnswer}</div>
                           </div>
 
                           {!result.isCorrect && (
-                            <div className="p-3 rounded-lg bg-[#7A9D96]/10 border-2 border-[#7A9D96]/30 font-semibold text-[#7A9D96]">
+                            <div className="p-3 rounded-lg bg-[#1B3A5C]/10 border-2 border-[#1B3A5C]/30 font-semibold text-[#1B3A5C]">
                               <span className="text-sm opacity-75">Correct answer:</span>
                               <div className="text-base mt-1">{result.correctAnswer}</div>
                             </div>
                           )}
 
                           {result.explanation && (
-                            <div className="bg-blue-50/50 border-l-4 border-[#7A9D96] p-4 rounded-r-lg">
+                            <div className="bg-[#1B3A5C]/5 border-l-4 border-[#1B3A5C] p-4 rounded-r-lg">
                               <div className="flex items-start">
-                                <AlertCircle className="w-5 h-5 text-[#7A9D96] mr-3 flex-shrink-0 mt-0.5" />
+                                <AlertCircle className="w-5 h-5 text-[#1B3A5C] mr-3 flex-shrink-0 mt-0.5" />
                                 <div>
-                                  <p className="text-sm font-semibold text-[#2C2C2C] mb-1">Explanation:</p>
-                                  <p className="text-sm text-[#6B6B6B]">{result.explanation}</p>
+                                  <p className="text-sm font-semibold text-[#1A1A1A] mb-1">Explanation:</p>
+                                  <p className="text-sm text-[#5A5A5A]">{result.explanation}</p>
                                 </div>
                               </div>
                             </div>
@@ -355,7 +355,7 @@ function ChapterTestView() {
             </div>
 
             <div className="flex justify-center">
-              <button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center space-x-2 group">
+              <button onClick={() => navigate("/dashboard")} className="bg-[#1B3A5C] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#16304d] transition-all flex items-center space-x-2 group">
                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                 <span>Back to Dashboard</span>
               </button>
@@ -370,28 +370,28 @@ function ChapterTestView() {
   if (!testStarted) {
     return (
       <Layout>
-        <div className="bg-[#FAFAF8] py-12">
+        <div className="bg-[#F7F7F5] py-12">
           <div className="max-w-2xl mx-auto px-6">
-            <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-12 border border-[#E8E8E6]">
+            <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-12 border border-[#E5E5E3]">
               <div className="text-center mb-8">
-                <div className="bg-gradient-to-br from-[#7A9D96] to-[#6A8D86] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <div className="bg-[#1B3A5C] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
                   <Target className="w-10 h-10 text-white" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
+                <h1 className="text-3xl sm:text-4xl font-bold text-[#1A1A1A] mb-3" style={{ fontFamily: "Lexend, sans-serif" }}>
                   Chapter Test
                 </h1>
-                <p className="text-lg text-[#6B6B6B]">Ready to test your knowledge?</p>
+                <p className="text-lg text-[#5A5A5A]">Ready to test your knowledge?</p>
               </div>
 
-              {/* Critical Warning - COMPACT */}
+              {/* Critical Warning - COMPACT (semantic danger color kept as-is) */}
               <div className="bg-gradient-to-r from-[#E76F51]/10 to-orange-100/50 border-l-4 border-[#E76F51] rounded-lg p-6 mb-8">
                 <div className="flex items-start">
                   <div className="bg-[#E76F51] rounded-lg p-2 mr-3 flex-shrink-0">
                     <AlertTriangle className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="font-bold text-lg text-[#2C2C2C] mb-3">Important Rules</p>
-                    <ul className="space-y-2 text-sm text-[#6B6B6B]">
+                    <p className="font-bold text-lg text-[#1A1A1A] mb-3">Important Rules</p>
+                    <ul className="space-y-2 text-sm text-[#5A5A5A]">
                       <li className="flex items-center">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#E76F51] mr-2"></div>
                         <span>
@@ -420,7 +420,7 @@ function ChapterTestView() {
               </div>
 
               <div className="flex justify-center">
-                <button onClick={handleStartTest} disabled={loading} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-12 py-4 rounded-xl font-bold text-lg hover:shadow-2xl disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-3 group">
+                <button onClick={handleStartTest} disabled={loading} className="bg-[#1B3A5C] text-white px-12 py-4 rounded-xl font-bold text-lg hover:bg-[#16304d] hover:shadow-2xl disabled:bg-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-3 group">
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
@@ -449,29 +449,29 @@ function ChapterTestView() {
 
     return (
       <Layout>
-        <div className="bg-[#FAFAF8] py-12">
+        <div className="bg-[#F7F7F5] py-12">
           <div className="max-w-2xl mx-auto px-4">
             {/* Compact Progress Header */}
-            <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-4 border border-[#E8E8E6]">
+            <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-4 border border-[#E5E5E3]">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#2C2C2C]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#1A1A1A]">
                     Question {testSession.currentQuestionIndex + 1}/{testSession.questions.length}
                   </h2>
-                  <p className="text-xs sm:text-sm text-[#6B6B6B]">Chapter Test</p>
+                  <p className="text-xs sm:text-sm text-[#5A5A5A]">Chapter Test</p>
                 </div>
                 <div className="text-center">
-                  <div className={`text-3xl sm:text-4xl font-bold ${timeRemaining <= 10 ? "text-red-600 animate-pulse" : "text-[#7A9D96]"}`}>{timeRemaining}s</div>
-                  <div className="text-xs text-[#6B6B6B]">Time Left</div>
+                  <div className={`text-3xl sm:text-4xl font-bold ${timeRemaining <= 10 ? "text-red-600 animate-pulse" : "text-[#1B3A5C]"}`}>{timeRemaining}s</div>
+                  <div className="text-xs text-[#5A5A5A]">Time Left</div>
                 </div>
               </div>
 
-              <div className="w-full bg-[#E8E8E6] rounded-full h-2">
-                <div className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+              <div className="w-full bg-[#E5E5E3] rounded-full h-2">
+                <div className="bg-[#1B3A5C] h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
               </div>
             </div>
 
-            {/* Compact Warning */}
+            {/* Compact Warning (semantic danger color kept as-is) */}
             <div className="bg-[#E76F51]/10 border-l-4 border-[#E76F51] rounded-lg p-3 mb-4">
               <p className="text-xs sm:text-sm text-[#E76F51] font-semibold flex items-center">
                 <AlertTriangle className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -480,21 +480,21 @@ function ChapterTestView() {
             </div>
 
             {/* Compact Question Card */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-[#E8E8E6]">
-              <p className="text-lg sm:text-xl text-[#2C2C2C] mb-6 leading-relaxed font-medium">{currentQuestion.questionText}</p>
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-[#E5E5E3]">
+              <p className="text-lg sm:text-xl text-[#1A1A1A] mb-6 leading-relaxed font-medium">{currentQuestion.questionText}</p>
 
               {/* COMPACT OPTIONS - NO SCROLL */}
               <div className="space-y-2">
                 {currentQuestion.options.map((option, index) => (
-                  <label key={index} className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${currentAnswer === option ? "border-[#7A9D96] bg-[#7A9D96]/10 shadow-sm" : "border-[#E8E8E6] hover:border-[#7A9D96]/50 hover:bg-[#FAFAF8]"}`}>
-                    <input type="radio" name="answer" value={option} checked={currentAnswer === option} onChange={(e) => setCurrentAnswer(e.target.value)} className="w-5 h-5 text-[#7A9D96] mr-3 cursor-pointer flex-shrink-0" />
-                    <span className="text-sm sm:text-base text-[#2C2C2C] font-medium leading-snug">{option}</span>
+                  <label key={index} className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${currentAnswer === option ? "border-[#1B3A5C] bg-[#1B3A5C]/10 shadow-sm" : "border-[#E5E5E3] hover:border-[#1B3A5C]/50 hover:bg-[#F7F7F5]"}`}>
+                    <input type="radio" name="answer" value={option} checked={currentAnswer === option} onChange={(e) => setCurrentAnswer(e.target.value)} className="w-5 h-5 text-[#1B3A5C] mr-3 cursor-pointer flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-[#1A1A1A] font-medium leading-snug">{option}</span>
                   </label>
                 ))}
               </div>
 
               <div className="mt-6 flex justify-center">
-                <button onClick={handleNextQuestion} disabled={!currentAnswer} className="bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] text-white px-10 py-3 rounded-xl font-bold hover:shadow-lg disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-2 group">
+                <button onClick={handleNextQuestion} disabled={!currentAnswer} className="bg-[#1B3A5C] text-white px-10 py-3 rounded-xl font-bold hover:bg-[#16304d] hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-all flex items-center space-x-2 group">
                   <span>{testSession.currentQuestionIndex === testSession.questions.length - 1 ? "Submit Test" : "Next Question"}</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>

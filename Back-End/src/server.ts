@@ -1,9 +1,11 @@
+import dns from "dns";
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 dotenv.config();
 import mongoose from "mongoose";
-import session from "express-session";
 import passport from "./config/passport";
 import oauthRoutes from "./routes/oauth.routes";
 
@@ -18,23 +20,31 @@ import { checkMaintenance } from "./middleware/maintenanceMiddleware";
 
 const app = express();
 
-app.use(express.json());
-app.use(cors());
+//* Fail fast rather than fall back to a permissive default: cors() with an
+//* undefined origin reflects any requester, silently reopening the hole this
+//* configuration exists to close.
+const frontendUrl = process.env.FRONTEND_URL;
 
+if (!frontendUrl) {
+  throw new Error("FRONTEND_URL must be set to the allowed browser origin");
+}
+
+app.use(express.json());
 app.use(
-  session({
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000,
-    },
+  cors({
+    origin: frontendUrl,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    //* No cookies are used (auth is a bearer token), but this stays enabled so
+    //* the browser is not blocked if a credentialed request is ever added.
+    credentials: true,
   }),
 );
 
+//* No express-session: authentication is entirely JWT-based (authMiddleware),
+//* and the OAuth routes run with session: false. passport.initialize() alone
+//* is enough to attach req.user for the duration of the callback request.
 app.use(passport.initialize());
-app.use(passport.session());
 
 // Public routes
 app.use("/api/auth", oauthRoutes);

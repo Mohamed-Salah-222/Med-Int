@@ -1,11 +1,12 @@
 import { validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
 import User from "../models/User";
-import jwt from "jsonwebtoken";
+import OAuthExchangeCode from "../models/OAuthExchangeCode";
+import { signAuthToken } from "../utils/authToken";
 import bcrypt from "bcryptjs";
 
-import { generateVerificationCode, generateResetToken } from "../utils/generateCode";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../utils/emailService";
+import { generateVerificationCode, generateResetToken, hashToken } from "../utils/generateCode";
+import { sendVerificationEmail, sendPasswordResetEmail, sendAccountExistsEmail } from "../utils/emailService";
 
 //*=====================================================
 //* TYPE DEFINITIONS
@@ -40,9 +41,18 @@ interface ResendVerificationBody {
   email: string;
 }
 
+interface OAuthExchangeBody {
+  code: string;
+}
+
 //*=====================================================
 //* REGISTRATION & VERIFICATION
 //*=====================================================
+
+//* Shared by register and resendVerification. Using one string across both
+//* endpoints means an attacker cannot compare their replies to learn whether
+//* an address exists, or whether it is pending verification or already verified.
+const VERIFICATION_DISPATCHED_MESSAGE = "If this email address requires verification, a code has been sent. Please check your inbox.";
 
 //*--- Register New User
 const register = async (req: Request<{}, {}, RegisterBody>, res: Response, next: NextFunction): Promise<void> => {
@@ -57,51 +67,42 @@ const register = async (req: Request<{}, {}, RegisterBody>, res: Response, next:
 
     const existingUser = await User.findOne({ email });
 
+    //* All three branches below answer with exactly the same status and body.
+    //* Anything that varies — wording, status code, an echoed user object —
+    //* turns this endpoint into an account-existence oracle. What differs is
+    //* the email, which only the address owner can read.
     if (existingUser && existingUser.isVerified) {
-      res.status(400).json({ message: "This email is already registered and verified." });
-      return;
-    }
-
-    const verificationCode = generateVerificationCode();
-    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    if (existingUser && !existingUser.isVerified) {
-      existingUser.name = name;
-      existingUser.password = password;
-      existingUser.verificationCode = verificationCode;
-      existingUser.verificationCodeExpires = verificationCodeExpires;
-      await existingUser.save();
-
-      await sendVerificationEmail(email, verificationCode, name);
-
-      res.status(200).json({
-        message: "Verification code resent. Please check your email.",
-        user: {
-          id: existingUser._id,
-          name: existingUser.name,
-          email: existingUser.email,
-        },
-      });
+      //* No verification code for an already-verified account; tell the owner
+      //* instead that someone tried to sign up as them.
+      await sendAccountExistsEmail(email, existingUser.name);
     } else {
-      const user = await User.create({
-        name,
-        email,
-        password,
-        verificationCode,
-        verificationCodeExpires,
-      });
+      //* Plaintext goes to the user's inbox; only the hash is persisted.
+      const verificationCode = generateVerificationCode();
+      const hashedVerificationCode = hashToken(verificationCode);
+      const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      await sendVerificationEmail(email, verificationCode, name);
+      if (existingUser) {
+        //* Never overwrite the pending account's name/password from this request —
+        //* that would let anyone take over an unverified email. Only resend the code.
+        existingUser.verificationCode = hashedVerificationCode;
+        existingUser.verificationCodeExpires = verificationCodeExpires;
+        await existingUser.save();
 
-      res.status(201).json({
-        message: "User created successfully. Please check your email for verification code.",
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-        },
-      });
+        await sendVerificationEmail(email, verificationCode, existingUser.name);
+      } else {
+        await User.create({
+          name,
+          email,
+          password,
+          verificationCode: hashedVerificationCode,
+          verificationCodeExpires,
+        });
+
+        await sendVerificationEmail(email, verificationCode, name);
+      }
     }
+
+    res.status(200).json({ message: VERIFICATION_DISPATCHED_MESSAGE });
   } catch (error) {
     next(error);
   }
@@ -130,7 +131,9 @@ const verify = async (req: Request<{}, {}, VerifyBody>, res: Response, next: Nex
       return;
     }
 
-    if (!user.verificationCode || user.verificationCode !== verificationCode) {
+    //* Compare hash-to-hash. Exact-match semantics are preserved, so a code with
+    //* different casing or stray whitespace still fails, as before.
+    if (!user.verificationCode || user.verificationCode !== hashToken(verificationCode)) {
       res.status(400).json({ message: "Invalid verification code" });
       return;
     }
@@ -166,32 +169,24 @@ const resendVerification = async (req: Request<{}, {}, ResendVerificationBody>, 
 
     const user = await User.findOne({ email });
 
-    if (!user) {
-      res.status(200).json({
-        message: "If that email exists and is not verified, a new verification code has been sent.",
-      });
-      return;
+    //* Same uniform reply as register: unknown address, pending account and
+    //* verified account are indistinguishable from the outside.
+    if (user && !user.isVerified) {
+      const verificationCode = generateVerificationCode();
+      const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+      user.verificationCode = hashToken(verificationCode);
+      user.verificationCodeExpires = verificationCodeExpires;
+      await user.save();
+
+      //* Plaintext to the inbox, hash to the database.
+      await sendVerificationEmail(email, verificationCode, user.name);
+    } else if (user) {
+      //* Verified already — the owner gets told where to sign in instead.
+      await sendAccountExistsEmail(email, user.name);
     }
 
-    if (user.isVerified) {
-      res.status(400).json({
-        message: "This email is already verified. You can log in.",
-      });
-      return;
-    }
-
-    const verificationCode = generateVerificationCode();
-    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
-
-    user.verificationCode = verificationCode;
-    user.verificationCodeExpires = verificationCodeExpires;
-    await user.save();
-
-    await sendVerificationEmail(email, verificationCode, user.name);
-
-    res.status(200).json({
-      message: "A new verification code has been sent to your email.",
-    });
+    res.status(200).json({ message: VERIFICATION_DISPATCHED_MESSAGE });
   } catch (error) {
     next(error);
   }
@@ -213,12 +208,21 @@ const login = async (req: Request<{}, {}, LoginBody>, res: Response, next: NextF
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select("+password");
+
+    //* Single bcrypt comparison. The result is decided here; the verification
+    //* check below runs only for a password that has already matched.
     if (!user || !(await user.comparePassword(password))) {
       res.status(401).json({ message: "Invalid email or password" });
       return;
     }
 
-    // Check if email is verified
+    //* This 403 does reveal that the address exists and is unverified, unlike
+    //* register and resendVerification above. It is kept deliberately: the only
+    //* route to /verify-email is Register.tsx after a successful signup, so a
+    //* generic "invalid email or password" here would strand an unverified user
+    //* with no discoverable way to finish verifying. Collapsing this into the
+    //* 401 requires the frontend to first offer a "resend verification" path
+    //* from the login screen.
     if (!user.isVerified) {
       res.status(403).json({
         message: "Please verify your email before logging in. Check your inbox for the verification code.",
@@ -226,23 +230,9 @@ const login = async (req: Request<{}, {}, LoginBody>, res: Response, next: NextF
       return;
     }
 
-    const isMatch = await user.comparePassword(password);
-
-    if (!isMatch) {
-      res.status(401).json({ message: "Invalid email or password" });
-      return;
-    }
-
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        role: user.role,
-      },
-      process.env.JWT_SECRET as string,
-      {
-        expiresIn: "1d",
-      }
-    );
+    //* Carries tokenVersion, which authMiddleware checks against the database on
+    //* every request — so a password change, role change or logout revokes it.
+    const token = signAuthToken(user);
 
     res.status(200).json({
       message: "Login successful",
@@ -261,8 +251,83 @@ const login = async (req: Request<{}, {}, LoginBody>, res: Response, next: NextF
 
 //*--- Logout User
 const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  //* Client-side should delete the token
-  res.status(200).json({ message: "Logged out successfully" });
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    //* Bumping tokenVersion is what makes logout real: authMiddleware compares
+    //* the token's version against this on every request, so the bearer token
+    //* the client just discarded stops working immediately instead of staying
+    //* valid until it expires.
+    //*
+    //* $inc rather than load-modify-save so two concurrent logouts cannot read
+    //* the same value and collapse into a single increment.
+    //*
+    //* NOTE: tokenVersion is per user, not per session, so this signs the user
+    //* out of every device at once. See the logout notes in the accompanying
+    //* documentation — per-session revocation needs a different mechanism.
+    await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } });
+
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//*--- Exchange a one-time OAuth code for the real JWT
+const exchangeOAuthCode = async (req: Request<{}, {}, OAuthExchangeBody>, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ errors: errors.array() });
+      return;
+    }
+
+    const { code } = req.body;
+
+    //* findOneAndDelete is atomic: two requests racing with the same code can
+    //* never both receive a token, which is what makes the code single-use.
+    //* The expiry is part of the filter because Mongo's TTL reaper is periodic
+    //* and an expired document may still be present.
+    const record = await OAuthExchangeCode.findOneAndDelete({
+      codeHash: hashToken(code),
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!record) {
+      res.status(400).json({ message: "Invalid or expired code" });
+      return;
+    }
+
+    const user = await User.findById(record.userId);
+
+    if (!user) {
+      res.status(400).json({ message: "Invalid or expired code" });
+      return;
+    }
+
+    //* Minted here rather than stored alongside the code, so the database never
+    //* holds a usable credential — and the token picks up the user's current
+    //* tokenVersion, not whatever it was when the redirect happened.
+    const token = signAuthToken(user);
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 //*--- Get Current User
@@ -323,10 +388,11 @@ const forgotPassword = async (req: Request<{}, {}, ForgotPasswordBody>, res: Res
     const resetToken = generateResetToken();
     const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    user.passwordResetToken = resetToken;
+    user.passwordResetToken = hashToken(resetToken);
     user.passwordResetExpires = resetTokenExpires;
     await user.save();
 
+    //* Plaintext to the inbox, hash to the database.
     await sendPasswordResetEmail(email, resetToken, user.name);
 
     res.status(200).json({
@@ -348,8 +414,10 @@ const resetPassword = async (req: Request<{}, {}, ResetPasswordBody>, res: Respo
 
     const { token, newPassword } = req.body;
 
+    //* Look the user up by the hash of the submitted token. The expiry condition
+    //* stays part of the same query, so expired tokens still never match.
     const user = await User.findOne({
-      passwordResetToken: token,
+      passwordResetToken: hashToken(token),
       passwordResetExpires: { $gt: new Date() },
     });
 
@@ -363,6 +431,8 @@ const resetPassword = async (req: Request<{}, {}, ResetPasswordBody>, res: Respo
     user.password = newPassword;
     user.passwordResetToken = undefined as any;
     user.passwordResetExpires = undefined as any;
+    //* The User pre-save hook bumps tokenVersion on a password change, so any
+    //* session an attacker still holds is revoked by the reset itself.
     await user.save();
 
     res.status(200).json({
@@ -377,4 +447,4 @@ const resetPassword = async (req: Request<{}, {}, ResetPasswordBody>, res: Respo
 //* EXPORTS
 //*=====================================================
 
-export { register, verify, resendVerification, login, logout, getCurrentUser, forgotPassword, resetPassword };
+export { register, verify, resendVerification, login, logout, getCurrentUser, forgotPassword, resetPassword, exchangeOAuthCode };

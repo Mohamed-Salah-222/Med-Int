@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import Layout from "../components/Layout";
 import { adminAPI } from "../services/api";
-import { Award, Search, Calendar, User, Mail, FileText, Download, ExternalLink, Filter, TrendingUp } from "lucide-react";
+import { Award, Search, Calendar, User, Mail, FileText, Download, ExternalLink, Filter, TrendingUp, FlaskConical } from "lucide-react";
 
 interface Certificate {
   _id: string;
@@ -12,6 +12,21 @@ interface Certificate {
   finalExamScore: number;
   completionDate: string;
   issuedAt: string;
+  verificationCode?: string;
+  certificateImageUrl?: string;
+  isTest?: boolean;
+}
+
+interface CourseOption {
+  id: string;
+  title: string;
+}
+
+interface GeneratedCertificate {
+  certificateNumber: string;
+  verificationCode: string;
+  certificateImageUrl?: string;
+  isTest?: boolean;
 }
 
 function AdminCertificates() {
@@ -20,9 +35,17 @@ function AdminCertificates() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "score">("newest");
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [testType, setTestType] = useState<"course" | "hipaa">("course");
+  const [testName, setTestName] = useState("");
+  const [testCourseId, setTestCourseId] = useState("");
+  const [generatingTest, setGeneratingTest] = useState(false);
+  const [generatedCertificate, setGeneratedCertificate] = useState<GeneratedCertificate | null>(null);
+  const [generateError, setGenerateError] = useState("");
 
   useEffect(() => {
     fetchCertificates();
+    fetchCourses();
   }, []);
 
   useEffect(() => {
@@ -37,6 +60,15 @@ function AdminCertificates() {
       console.error("Error fetching certificates:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const response = await adminAPI.getAllCourses();
+      setCourses(response.data.courses || []);
+    } catch (error) {
+      console.error("Error fetching courses:", error);
     }
   };
 
@@ -65,9 +97,37 @@ function AdminCertificates() {
     setFilteredCertificates(filtered);
   };
 
-  const handleVerifyCertificate = (certNumber: string) => {
+  const handleVerifyCertificate = (cert: Certificate | GeneratedCertificate) => {
+    if (!cert.verificationCode) {
+      return;
+    }
+
     const baseUrl = window.location.origin;
-    window.open(`${baseUrl}/verify-certificate?code=${certNumber}`, "_blank");
+    window.open(`${baseUrl}/verify-certificate?certificateNumber=${cert.certificateNumber}&verificationCode=${cert.verificationCode}`, "_blank");
+  };
+
+  const handleGenerateTestCertificate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setGeneratingTest(true);
+    setGenerateError("");
+    setGeneratedCertificate(null);
+
+    try {
+      const response = await adminAPI.generateTestCertificate({
+        type: testType,
+        name: testName.trim() || undefined,
+        courseId: testCourseId || undefined,
+      });
+
+      setGeneratedCertificate(response.data.certificate);
+      setTestName("");
+      await fetchCertificates();
+    } catch (error: any) {
+      console.error("Error generating test certificate:", error);
+      setGenerateError(error.response?.data?.message || "Failed to generate test certificate");
+    } finally {
+      setGeneratingTest(false);
+    }
   };
 
   if (loading) {
@@ -130,6 +190,83 @@ function AdminCertificates() {
             </div>
           </div>
 
+          {/* Generate Test Certificate */}
+          <div className="bg-white rounded-xl p-4 sm:p-6 border border-[#E8E8E6] mb-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-xl font-bold text-[#2C2C2C] flex items-center gap-2" style={{ fontFamily: "Lexend, sans-serif" }}>
+                  <FlaskConical className="w-5 h-5 text-[#7A9D96]" />
+                  Generate Test Certificate
+                </h2>
+                <p className="text-sm text-[#6B6B6B] mt-1">Create a persisted certificate record for QA verification.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleGenerateTestCertificate} className="grid lg:grid-cols-[1fr_1fr_1fr_auto] gap-4 items-end">
+              <div>
+                <label className="block text-sm font-semibold text-[#2C2C2C] mb-2">Certificate Type</label>
+                <select value={testType} onChange={(event) => setTestType(event.target.value as "course" | "hipaa")} className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all">
+                  <option value="course">Course</option>
+                  <option value="hipaa">HIPAA</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-[#2C2C2C] mb-2">Recipient Name</label>
+                <input type="text" value={testName} onChange={(event) => setTestName(event.target.value)} placeholder="Test User" className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-[#2C2C2C] mb-2">Course</label>
+                <select value={testCourseId} onChange={(event) => setTestCourseId(event.target.value)} className="w-full px-4 py-3 border-2 border-[#E8E8E6] rounded-lg focus:border-[#7A9D96] focus:ring-2 focus:ring-[#7A9D96]/20 outline-none transition-all">
+                  <option value="">Use default course</option>
+                  {courses.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button type="submit" disabled={generatingTest} className="px-5 py-3 bg-[#7A9D96] text-white rounded-lg hover:bg-[#6A8D86] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-sm">
+                <FlaskConical className="w-4 h-4" />
+                <span>{generatingTest ? "Generating..." : "Generate"}</span>
+              </button>
+            </form>
+
+            {generateError && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{generateError}</div>}
+
+            {generatedCertificate && (
+              <div className="mt-5 bg-[#FAFAF8] rounded-lg p-4 border border-[#E8E8E6]">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div className="grid sm:grid-cols-2 gap-4 flex-1">
+                    <div>
+                      <div className="text-xs text-[#6B6B6B] mb-1">Certificate Number</div>
+                      <div className="font-mono font-semibold text-[#2C2C2C]">{generatedCertificate.certificateNumber}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-[#6B6B6B] mb-1">Verification Code</div>
+                      <div className="font-mono font-semibold text-[#2C2C2C]">{generatedCertificate.verificationCode}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button type="button" onClick={() => handleVerifyCertificate(generatedCertificate)} className="px-4 py-2 bg-[#7A9D96] text-white rounded-lg hover:bg-[#6A8D86] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Verify</span>
+                    </button>
+                    {generatedCertificate.certificateImageUrl && (
+                      <a href={generatedCertificate.certificateImageUrl} target="_blank" rel="noreferrer" className="px-4 py-2 bg-white border-2 border-[#7A9D96] text-[#7A9D96] rounded-lg hover:bg-[#7A9D96] hover:text-white transition-all flex items-center justify-center gap-2 text-sm font-semibold">
+                        <Download className="w-4 h-4" />
+                        <span>Preview</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Filters */}
           <div className="bg-white rounded-xl p-4 sm:p-6 border border-[#E8E8E6] mb-6 shadow-sm">
             <div className="grid sm:grid-cols-2 gap-4">
@@ -173,7 +310,10 @@ function AdminCertificates() {
                       <div className="flex items-center space-x-3 mb-4">
                         <div className="w-12 h-12 bg-gradient-to-r from-[#7A9D96] to-[#6A8D86] rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">{cert.userName.charAt(0).toUpperCase()}</div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg sm:text-xl font-bold text-[#2C2C2C] truncate">{cert.userName}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg sm:text-xl font-bold text-[#2C2C2C] truncate">{cert.userName}</h3>
+                            {cert.isTest && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold border border-amber-200">TEST</span>}
+                          </div>
                           <div className="flex items-center text-sm text-[#6B6B6B] truncate">
                             <Mail className="w-3 h-3 mr-1 flex-shrink-0" />
                             {cert.userEmail}
@@ -190,6 +330,11 @@ function AdminCertificates() {
                           <div className="flex-1 min-w-0">
                             <div className="text-xs text-[#6B6B6B]">Certificate Number</div>
                             <div className="font-mono font-semibold text-[#2C2C2C] text-sm truncate">{cert.certificateNumber}</div>
+                            {cert.verificationCode && (
+                              <div className="font-mono text-xs text-[#6B6B6B] truncate">
+                                Code: <span className="font-semibold">{cert.verificationCode}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -247,10 +392,16 @@ function AdminCertificates() {
 
                     {/* Actions */}
                     <div className="flex lg:flex-col gap-2">
-                      <button onClick={() => handleVerifyCertificate(cert.certificateNumber)} className="flex-1 lg:flex-none px-4 py-2 bg-[#7A9D96] text-white rounded-lg hover:bg-[#6A8D86] transition-all flex items-center justify-center space-x-2 text-sm font-semibold shadow-sm" title="Verify Certificate">
+                      <button onClick={() => handleVerifyCertificate(cert)} disabled={!cert.verificationCode} className="flex-1 lg:flex-none px-4 py-2 bg-[#7A9D96] text-white rounded-lg hover:bg-[#6A8D86] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 text-sm font-semibold shadow-sm" title="Verify Certificate">
                         <ExternalLink className="w-4 h-4" />
                         <span>Verify</span>
                       </button>
+                      {cert.certificateImageUrl && (
+                        <a href={cert.certificateImageUrl} target="_blank" rel="noreferrer" className="flex-1 lg:flex-none px-4 py-2 bg-white border-2 border-[#7A9D96] text-[#7A9D96] rounded-lg hover:bg-[#7A9D96] hover:text-white transition-all flex items-center justify-center space-x-2 text-sm font-semibold shadow-sm" title="Preview Certificate">
+                          <Download className="w-4 h-4" />
+                          <span>Preview</span>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

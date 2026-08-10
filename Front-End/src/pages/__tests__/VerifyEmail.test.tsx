@@ -77,15 +77,29 @@ describe("VerifyEmail Page", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/");
     });
 
-    it("should handle missing email gracefully", () => {
+    it("should not render a submittable form when the email is missing", () => {
       renderVerifyEmail("");
 
-      // More specific: check the span inside the paragraph
-      expect(
-        screen.getByText((content, element) => {
-          return element?.tagName === "SPAN" && element?.textContent === "your email";
-        })
-      ).toBeInTheDocument();
+      //* Nothing to submit: no code inputs and no verify button.
+      expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: /verify email/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /resend code/i })).not.toBeInTheDocument();
+    });
+
+    it("should explain the problem and offer a way out when the email is missing", () => {
+      renderVerifyEmail("");
+
+      expect(screen.getByRole("alert")).toHaveTextContent(/don't know which email address to verify/i);
+      expect(screen.getByRole("link", { name: /back to register/i })).toHaveAttribute("href", "/register");
+      expect(screen.getByRole("link", { name: /go to login/i })).toHaveAttribute("href", "/login");
+    });
+
+    it("should never call the backend with an empty email", async () => {
+      renderVerifyEmail("");
+
+      //* No affordance exists to trigger a request at all.
+      expect(authAPI.verifyEmail).not.toHaveBeenCalled();
+      expect(authAPI.resendVerification).not.toHaveBeenCalled();
     });
   });
 
@@ -401,6 +415,60 @@ describe("VerifyEmail Page", () => {
   });
 
   describe("Resend Code", () => {
+    it("should show a visible confirmation after resending", async () => {
+      const user = userEvent.setup();
+      vi.mocked(authAPI.resendVerification).mockResolvedValue({} as any);
+
+      renderVerifyEmail();
+
+      //* Nothing before the click.
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /resend code/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(/code sent/i);
+      });
+    });
+
+    it("should not show the confirmation when resending fails", async () => {
+      const user = userEvent.setup();
+      vi.mocked(authAPI.resendVerification).mockRejectedValue({
+        response: { data: { message: "Too many requests" } },
+      });
+
+      renderVerifyEmail();
+
+      await user.click(screen.getByRole("button", { name: /resend code/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("alert")).toHaveTextContent(/too many requests/i);
+      });
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("should clear the confirmation when a verification is then submitted", async () => {
+      const user = userEvent.setup();
+      vi.mocked(authAPI.resendVerification).mockResolvedValue({} as any);
+      vi.mocked(authAPI.verifyEmail).mockRejectedValue({
+        response: { data: { message: "Invalid verification code" } },
+      });
+
+      renderVerifyEmail();
+
+      await user.click(screen.getByRole("button", { name: /resend code/i }));
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toBeInTheDocument();
+      });
+
+      await user.paste("123456");
+      await user.click(screen.getByRole("button", { name: /verify email/i }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      });
+    });
+
     it("should resend verification code", async () => {
       const user = userEvent.setup();
       vi.mocked(authAPI.resendVerification).mockResolvedValue({} as any);

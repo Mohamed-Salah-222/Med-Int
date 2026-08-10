@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { authAPI } from "../services/api";
+import { authAPI, GOOGLE_OAUTH_URL } from "../services/api";
+import { checkPasswordStrength, isPasswordValid, PASSWORD_REQUIREMENTS_MESSAGE } from "../utils/passwordValidation";
 import { UserPlus, CheckCircle, AlertCircle, Eye, EyeOff, ArrowRight, Shield, Award, TrendingUp } from "lucide-react";
 
 function Register() {
@@ -14,18 +15,6 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, color: "" });
   const navigate = useNavigate();
-
-  const checkPasswordStrength = (pwd: string) => {
-    let score = 0;
-    if (pwd.length >= 8) score++;
-    if (/[a-z]/.test(pwd)) score++;
-    if (/[A-Z]/.test(pwd)) score++;
-    if (/\d/.test(pwd)) score++;
-    if (/[^a-zA-Z\d]/.test(pwd)) score++;
-
-    const colors = ["", "bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-green-500", "bg-emerald-600"];
-    return { score, color: colors[score] };
-  };
 
   const handlePasswordChange = (value: string) => {
     setPassword(value);
@@ -43,9 +32,8 @@ function Register() {
 
     setLoading(true);
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!passwordRegex.test(password)) {
-      setError("Password must be at least 8 characters with uppercase, lowercase, and number");
+    if (!isPasswordValid(password)) {
+      setError(PASSWORD_REQUIREMENTS_MESSAGE);
       setLoading(false);
       return;
     }
@@ -61,7 +49,7 @@ function Register() {
   };
 
   const handleGoogleSignIn = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+    window.location.href = GOOGLE_OAUTH_URL;
   };
 
   return (

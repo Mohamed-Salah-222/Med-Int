@@ -1,14 +1,25 @@
 import axios from "axios";
 import { LoginResponse, Lesson, Question, QuizAnswer, QuizSubmitResponse, DetailedProgress, TestSubmitResponse, ExamSubmitResponse, Certificate, User } from "../types";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
+
+export const API_BASE_URL = normalizedApiUrl.endsWith("/api") ? normalizedApiUrl : `${normalizedApiUrl}/api`;
+export const GOOGLE_OAUTH_URL = `${API_BASE_URL}/auth/google`;
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
 });
 
-// Request interceptor (already exists - adds auth token)
+// Request interceptor - adds auth token
 api.interceptors.request.use((config) => {
+  // An explicitly supplied Authorization header wins. This lets a caller
+  // validate a token it has not stored yet (the OAuth callback) instead of
+  // having to write it to localStorage first just to make it reachable here.
+  if (config.headers.Authorization) {
+    return config;
+  }
+
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -16,7 +27,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor (NEW - handles maintenance mode)
+// Response interceptor - handles maintenance mode
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -42,7 +53,15 @@ export const authAPI = {
 
   resetPassword: (token: string, password: string) => api.post("/auth/reset-password", { token, newPassword: password }),
 
-  getCurrentUser: () => api.get<{ user: User }>("/auth/me"),
+  // Pass `token` to authenticate with a token that is not (yet) in localStorage.
+  getCurrentUser: (token?: string) => api.get<{ user: User }>("/auth/me", token ? { headers: { Authorization: `Bearer ${token}` } } : undefined),
+
+  // Invalidates the token server-side by bumping the user's tokenVersion.
+  // Accepts an explicit token so it still works if local storage was already cleared.
+  logout: (token?: string) => api.post("/auth/logout", {}, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined),
+
+  // Trades the one-time code from the OAuth redirect for the real JWT.
+  exchangeOAuthCode: (code: string) => api.post<{ token: string; user: User }>("/auth/oauth/exchange", { code }),
 };
 
 export const courseAPI = {
@@ -53,6 +72,8 @@ export const courseAPI = {
   submitQuiz: (id: string, answers: QuizAnswer[]) => api.post<QuizSubmitResponse>(`/courses/lessons/${id}/submit-quiz`, { answers }),
 
   getCourse: (id: string) => api.get<{ course: { id: string; title: string; description: string; totalChapters: number; chapters: any[] } }>(`/courses/${id}`),
+
+  getChapter: (id: string) => api.get(`/courses/chapters/${id}`),
 
   getDetailedProgress: (courseId: string) => api.get<{ progress: DetailedProgress }>(`/courses/${courseId}/detailed-progress`),
 
@@ -72,6 +93,8 @@ export const courseAPI = {
   getCertificate: (courseId: string) => api.get<{ certificate: Certificate }>(`/courses/${courseId}/certificate`),
 
   getCertificates: (courseId: string) => api.get<{ certificates: { main: Certificate | null; hipaa: Certificate | null } }>(`/courses/${courseId}/certificates`),
+
+  markChapterIntroViewed: (chapterId: string) => api.post(`/courses/chapters/${chapterId}/view-intro`),
 
   checkLessonAccess: (lessonId: string) => api.get(`/access/lesson/${lessonId}`),
 
@@ -127,6 +150,7 @@ export const adminAPI = {
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
 
   getAllCertificates: () => api.get("/admin/dashboard/certificates"),
+  generateTestCertificate: (data: { type: "course" | "hipaa"; name?: string; courseId?: string }) => api.post("/admin/certificates/test-generate", data),
 
   // Settings
   getSettings: () => api.get("/admin/settings"),

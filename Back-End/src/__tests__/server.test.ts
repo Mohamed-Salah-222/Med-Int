@@ -170,49 +170,10 @@ describe("Server Configuration", () => {
     });
   });
 
-  describe("Session Configuration", () => {
-    test("should set secure cookies in production", () => {
-      process.env.NODE_ENV = "production";
-      const sessionConfig = {
-        secret: process.env.SESSION_SECRET!,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-          secure: process.env.NODE_ENV === "production",
-          maxAge: 24 * 60 * 60 * 1000,
-        },
-      };
-
-      expect(sessionConfig.cookie.secure).toBe(true);
-    });
-
-    test("should not set secure cookies in development", () => {
-      process.env.NODE_ENV = "development";
-      const sessionConfig = {
-        secret: process.env.SESSION_SECRET!,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-          secure: process.env.NODE_ENV === "production",
-          maxAge: 24 * 60 * 60 * 1000,
-        },
-      };
-
-      expect(sessionConfig.cookie.secure).toBe(false);
-    });
-
-    test("should set session max age to 24 hours", () => {
-      const expectedMaxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-      const sessionConfig = {
-        cookie: {
-          maxAge: 24 * 60 * 60 * 1000,
-        },
-      };
-
-      expect(sessionConfig.cookie.maxAge).toBe(expectedMaxAge);
-      expect(sessionConfig.cookie.maxAge).toBe(86400000);
-    });
-  });
+  //* The former "Session Configuration" block was removed along with
+  //* express-session. Those tests asserted against an object literal they
+  //* declared inline, so they never exercised server.ts and would have kept
+  //* passing while describing middleware that no longer exists.
 });
 
 describe("Database Connection", () => {
