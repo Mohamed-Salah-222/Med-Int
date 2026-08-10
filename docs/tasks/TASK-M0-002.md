@@ -3,7 +3,7 @@
 Implementer: Codex
 Reviewer: Claude Code
 Depends on: none
-Status: ready
+Status: Done
 
 ## Problem
 

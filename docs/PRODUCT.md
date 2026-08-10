@@ -74,9 +74,10 @@ assignment. (Currently role-based — see ROADMAP M7.)
 
 The certificate is only worth what the testing is worth.
 
-- **30 seconds per question, globally.** Deliberate. An interpreter's
+- **60 seconds per question, globally.** Applies to lesson quizzes,
+  chapter tests, and the final exam alike. Deliberate: an interpreter's
   core skill is reaction speed under live conditions. The timer is
-  training, not just anti-cheat. All questions are recall-type.
+  training, not just anti-cheat. All questions are recall-type MCQs.
 - **Timing is authoritative server-side.** The server issues questions
   with a timestamp and validates expiry at submission. A brief grace
   window on reconnect prevents network issues failing honest students.
