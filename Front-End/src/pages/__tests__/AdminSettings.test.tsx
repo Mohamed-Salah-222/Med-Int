@@ -91,7 +91,7 @@ describe("AdminSettings Page", () => {
       renderAdminSettings();
 
       await waitFor(() => {
-        expect(screen.getByText("Settings")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Platform Settings", level: 1 })).toBeInTheDocument();
       });
 
       expect(screen.getByText(/configure platform settings/i)).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe("AdminSettings Page", () => {
       renderAdminSettings();
 
       await waitFor(() => {
-        expect(screen.getByText("Platform Settings")).toBeInTheDocument();
+        expect(screen.getAllByText("Platform Settings").length).toBeGreaterThan(0);
       });
     });
 
@@ -132,7 +132,7 @@ describe("AdminSettings Page", () => {
         expect(screen.getByText("Maintenance Mode")).toBeInTheDocument();
       });
 
-      expect(screen.getByText(/disable user access temporarily/i)).toBeInTheDocument();
+      expect(screen.getByText(/blocks all student access/i)).toBeInTheDocument();
     });
   });
 

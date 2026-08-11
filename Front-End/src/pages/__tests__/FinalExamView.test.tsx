@@ -9,7 +9,8 @@ import { courseAPI } from "../../services/api";
 vi.mock("../../services/api", () => ({
   courseAPI: {
     checkFinalExamAccess: vi.fn(),
-    getFinalExam: vi.fn(),
+    startFinalExam: vi.fn(),
+    abandonFinalExam: vi.fn(),
     submitFinalExam: vi.fn(),
   },
 }));
@@ -45,6 +46,7 @@ const mockAccessAllowed = {
 
 const mockExamData = {
   data: {
+    sessionId: "session-1",
     exam: {
       questions: [
         {
@@ -139,6 +141,39 @@ const renderFinalExamView = (courseId = "course-1") => {
   );
 };
 
+const startExam = async (user = userEvent.setup()) => {
+  renderFinalExamView();
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /start final exam/i })).toBeInTheDocument();
+  });
+
+  await user.click(screen.getByRole("button", { name: /start final exam/i }));
+
+  await waitFor(() => {
+    expect(screen.getByText(/what is medical interpretation/i)).toBeInTheDocument();
+  });
+
+  return user;
+};
+
+const answerAndSubmitExam = async (result: any) => {
+  const user = userEvent.setup();
+  vi.mocked(courseAPI.submitFinalExam).mockResolvedValue(result as any);
+
+  await startExam(user);
+
+  await user.click(screen.getByRole("radio", { name: /option a/i }));
+  await user.click(screen.getByRole("button", { name: /next question/i }));
+
+  await waitFor(() => {
+    expect(screen.getByText(/what are hipaa regulations/i)).toBeInTheDocument();
+  });
+
+  await user.click(screen.getByRole("radio", { name: /rule 1/i }));
+  await user.click(screen.getByRole("button", { name: /submit exam/i }));
+};
+
 describe("FinalExamView Page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -146,12 +181,12 @@ describe("FinalExamView Page", () => {
     mockConfirm.mockClear();
     mockAlert.mockClear();
     vi.mocked(courseAPI.checkFinalExamAccess).mockResolvedValue(mockAccessAllowed as any);
-    vi.mocked(courseAPI.getFinalExam).mockResolvedValue(mockExamData as any);
+    vi.mocked(courseAPI.startFinalExam).mockResolvedValue(mockExamData as any);
   });
 
   describe("Loading State", () => {
     it("should show loading while fetching", () => {
-      vi.mocked(courseAPI.getFinalExam).mockImplementation(
+      vi.mocked(courseAPI.checkFinalExamAccess).mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
 
@@ -189,13 +224,13 @@ describe("FinalExamView Page", () => {
     });
 
     it("should display progress counter", async () => {
-      renderFinalExamView();
+      await startExam();
 
       await waitFor(() => {
-        expect(screen.getByText(/0\/2/i)).toBeInTheDocument(); // 0 answered out of 2
+        expect(screen.getByText(/question 1\/2/i)).toBeInTheDocument();
       });
 
-      expect(screen.getByText("Questions Answered")).toBeInTheDocument();
+      expect(screen.getByText("Time Left")).toBeInTheDocument();
     });
   });
 
@@ -204,63 +239,58 @@ describe("FinalExamView Page", () => {
       renderFinalExamView();
 
       await waitFor(() => {
-        expect(screen.getByText(/final exam rules/i)).toBeInTheDocument();
+        expect(screen.getByText(/important rules/i)).toBeInTheDocument();
       });
 
-      // "Passing score: 80%" is split - check for parts
-      expect(screen.getByText(/passing score:/i)).toBeInTheDocument();
-      expect(screen.getByText(/80%/i)).toBeInTheDocument();
+      expect(screen.getByText(/important rules/i)).toBeInTheDocument();
+      expect(screen.getByText(/80% passing score/i)).toBeInTheDocument();
       expect(screen.getByText(/24-hour cooldown/i)).toBeInTheDocument();
       expect(screen.getByText(/two certificates/i)).toBeInTheDocument();
     });
   });
 
   describe("Questions Display", () => {
-    it("should display all questions", async () => {
-      renderFinalExamView();
+    it("should display the current question", async () => {
+      await startExam();
 
       await waitFor(() => {
         expect(screen.getByText(/what is medical interpretation/i)).toBeInTheDocument();
       });
 
-      expect(screen.getByText(/what are hipaa regulations/i)).toBeInTheDocument();
+      expect(screen.queryByText(/what are hipaa regulations/i)).not.toBeInTheDocument();
     });
 
     it("should display question numbers", async () => {
-      renderFinalExamView();
+      await startExam();
 
       await waitFor(() => {
-        expect(screen.getByText("Question 1")).toBeInTheDocument();
+        expect(screen.getByText("Question 1/2")).toBeInTheDocument();
       });
-
-      expect(screen.getByText("Question 2")).toBeInTheDocument();
     });
 
-    it("should display difficulty badges", async () => {
-      renderFinalExamView();
+    it("should display the per-question timer", async () => {
+      await startExam();
 
       await waitFor(() => {
-        expect(screen.getByText("EASY")).toBeInTheDocument();
+        expect(screen.getByText("60s")).toBeInTheDocument();
       });
-
-      expect(screen.getByText("MEDIUM")).toBeInTheDocument();
     });
 
     it("should display answer options", async () => {
-      renderFinalExamView();
+      await startExam();
 
       await waitFor(() => {
         expect(screen.getByText("Option A")).toBeInTheDocument();
       });
 
-      expect(screen.getByText("Rule 1")).toBeInTheDocument();
+      expect(screen.queryByText("Rule 1")).not.toBeInTheDocument();
     });
   });
 
   describe("Answer Selection", () => {
     it("should allow selecting answers", async () => {
       const user = userEvent.setup();
-      renderFinalExamView();
+      await startExam(user);
 
       await waitFor(() => {
         expect(screen.getByText("Option A")).toBeInTheDocument();
@@ -274,85 +304,66 @@ describe("FinalExamView Page", () => {
 
     it("should update progress counter when answers selected", async () => {
       const user = userEvent.setup();
-      renderFinalExamView();
+      await startExam(user);
 
       await waitFor(() => {
-        expect(screen.getByText(/0\/2/i)).toBeInTheDocument();
+        expect(screen.getByText(/question 1\/2/i)).toBeInTheDocument();
       });
 
       const radioA = screen.getByRole("radio", { name: /option a/i });
       await user.click(radioA);
+      await user.click(screen.getByRole("button", { name: /next question/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/1\/2/i)).toBeInTheDocument();
+        expect(screen.getByText(/question 2\/2/i)).toBeInTheDocument();
       });
     });
   });
 
   describe("Submit Button", () => {
-    it("should be disabled when not all questions answered", async () => {
-      renderFinalExamView();
+    it("should disable next when the current question is unanswered", async () => {
+      await startExam();
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /submit final exam/i })).toBeDisabled();
+        expect(screen.getByRole("button", { name: /next question/i })).toBeDisabled();
       });
     });
 
-    it("should be enabled when all questions answered", async () => {
+    it("should enable next when the current question is answered", async () => {
       const user = userEvent.setup();
-      renderFinalExamView();
-
-      await waitFor(() => {
-        expect(screen.getByText("Option A")).toBeInTheDocument();
-      });
-
-      // Answer both questions
-      await user.click(screen.getByRole("radio", { name: /option a/i }));
-      await user.click(screen.getByRole("radio", { name: /rule 1/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole("button", { name: /submit final exam/i })).not.toBeDisabled();
-      });
-    });
-
-    it("should show confirmation dialog on submit", async () => {
-      const user = userEvent.setup();
-      mockConfirm.mockReturnValue(false);
-      renderFinalExamView();
+      await startExam(user);
 
       await waitFor(() => {
         expect(screen.getByText("Option A")).toBeInTheDocument();
       });
 
       await user.click(screen.getByRole("radio", { name: /option a/i }));
-      await user.click(screen.getByRole("radio", { name: /rule 1/i }));
 
-      await user.click(screen.getByRole("button", { name: /submit final exam/i }));
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /next question/i })).not.toBeDisabled();
+      });
+    });
 
-      expect(mockConfirm).toHaveBeenCalledWith(expect.stringContaining("Are you sure you want to submit your FINAL EXAM"));
+    it("should submit after the final question", async () => {
+      await answerAndSubmitExam(mockPassedResults);
+
+      await waitFor(() => {
+        expect(courseAPI.submitFinalExam).toHaveBeenCalledWith("course-1", "session-1", [
+          { questionId: "q1", selectedAnswer: "Option A" },
+          { questionId: "q2", selectedAnswer: "Rule 1" },
+        ]);
+      });
     });
   });
 
   describe("Passed Results", () => {
     beforeEach(async () => {
-      const user = userEvent.setup();
-      mockConfirm.mockReturnValue(true);
-      vi.mocked(courseAPI.submitFinalExam).mockResolvedValue(mockPassedResults as any);
-
-      renderFinalExamView();
-
-      await waitFor(() => {
-        expect(screen.getByText("Option A")).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole("radio", { name: /option a/i }));
-      await user.click(screen.getByRole("radio", { name: /rule 1/i }));
-      await user.click(screen.getByRole("button", { name: /submit final exam/i }));
+      await answerAndSubmitExam(mockPassedResults);
     });
 
     it("should display congratulations message", async () => {
       await waitFor(() => {
-        expect(screen.getByText("Congratulations!")).toBeInTheDocument();
+        expect(screen.getByText(/congratulations/i)).toBeInTheDocument();
       });
     });
 
@@ -397,19 +408,7 @@ describe("FinalExamView Page", () => {
 
   describe("Failed Results", () => {
     it("should display failure message", async () => {
-      const user = userEvent.setup();
-      mockConfirm.mockReturnValue(true);
-      vi.mocked(courseAPI.submitFinalExam).mockResolvedValue(mockFailedResults as any);
-
-      renderFinalExamView();
-
-      await waitFor(() => {
-        expect(screen.getByText("Option A")).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole("radio", { name: /option a/i }));
-      await user.click(screen.getByRole("radio", { name: /rule 1/i }));
-      await user.click(screen.getByRole("button", { name: /submit final exam/i }));
+      await answerAndSubmitExam(mockFailedResults);
 
       await waitFor(() => {
         expect(screen.getByText("Keep Trying!")).toBeInTheDocument();
@@ -417,19 +416,7 @@ describe("FinalExamView Page", () => {
     });
 
     it("should display cooldown message", async () => {
-      const user = userEvent.setup();
-      mockConfirm.mockReturnValue(true);
-      vi.mocked(courseAPI.submitFinalExam).mockResolvedValue(mockFailedResults as any);
-
-      renderFinalExamView();
-
-      await waitFor(() => {
-        expect(screen.getByText("Option A")).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole("radio", { name: /option a/i }));
-      await user.click(screen.getByRole("radio", { name: /rule 1/i }));
-      await user.click(screen.getByRole("button", { name: /submit final exam/i }));
+      await answerAndSubmitExam(mockFailedResults);
 
       await waitFor(() => {
         expect(screen.getByText(/wait 24 hours to retry/i)).toBeInTheDocument();
@@ -446,11 +433,18 @@ describe("FinalExamView Page", () => {
       });
     });
 
-    it("should fetch exam on mount", async () => {
+    it("should start exam when requested", async () => {
+      const user = userEvent.setup();
       renderFinalExamView();
 
       await waitFor(() => {
-        expect(courseAPI.getFinalExam).toHaveBeenCalledWith("course-1");
+        expect(screen.getByRole("button", { name: /start final exam/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: /start final exam/i }));
+
+      await waitFor(() => {
+        expect(courseAPI.startFinalExam).toHaveBeenCalledWith("course-1");
       });
     });
   });

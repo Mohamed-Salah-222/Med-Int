@@ -7,6 +7,7 @@ import { authAPI } from "../../services/api";
 
 // Mock the API
 vi.mock("../../services/api", () => ({
+  GOOGLE_OAUTH_URL: "http://localhost:5000/api/auth/google",
   authAPI: {
     register: vi.fn(),
   },

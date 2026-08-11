@@ -85,7 +85,10 @@ const mockPassedResults = {
         isCorrect: true,
       },
     ],
-    nextLessonId: "lesson-2",
+    nextAction: {
+      type: "lesson",
+      lessonId: "lesson-2",
+    },
   },
 };
 
@@ -477,7 +480,7 @@ describe("QuizView Page", () => {
       await user.click(screen.getByRole("button", { name: /submit now/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /continue to next lesson/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /next lesson/i })).toBeInTheDocument();
       });
     });
 
@@ -499,10 +502,10 @@ describe("QuizView Page", () => {
       await user.click(screen.getByRole("button", { name: /submit now/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /continue to next lesson/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /next lesson/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("button", { name: /continue to next lesson/i }));
+      await user.click(screen.getByRole("button", { name: /next lesson/i }));
 
       expect(mockNavigate).toHaveBeenCalledWith("/lesson/lesson-2");
     });
@@ -511,7 +514,12 @@ describe("QuizView Page", () => {
       const user = userEvent.setup();
       const resultsWithoutNext = {
         ...mockPassedResults,
-        data: { ...mockPassedResults.data, nextLessonId: null },
+        data: {
+          ...mockPassedResults.data,
+          nextAction: {
+            type: "completed",
+          },
+        },
       };
       vi.mocked(courseAPI.submitQuiz).mockResolvedValue(resultsWithoutNext as any);
 
@@ -529,7 +537,7 @@ describe("QuizView Page", () => {
       await user.click(screen.getByRole("button", { name: /submit now/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /course complete!/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /view certificates/i })).toBeInTheDocument();
       });
     });
   });

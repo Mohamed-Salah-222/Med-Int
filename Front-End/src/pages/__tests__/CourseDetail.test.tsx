@@ -302,7 +302,7 @@ describe("CourseDetail Page", () => {
       renderCourseDetail();
 
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: /course includes/i })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: /features/i })).toBeInTheDocument();
       });
 
       expect(screen.getByText(/interactive quizzes/i)).toBeInTheDocument();
@@ -316,7 +316,7 @@ describe("CourseDetail Page", () => {
         expect(screen.getByRole("heading", { name: /career outlook/i })).toBeInTheDocument();
       });
 
-      expect(screen.getByText(/\$25-45\/hour/i)).toBeInTheDocument();
+      expect(screen.getByText(/\$10-25\/hour/i)).toBeInTheDocument();
       expect(screen.getByText(/20% by 2031/i)).toBeInTheDocument();
       expect(screen.getByText(/ai-proof/i)).toBeInTheDocument();
     });

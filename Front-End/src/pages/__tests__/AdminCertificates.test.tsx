@@ -9,6 +9,8 @@ import { adminAPI } from "../../services/api";
 vi.mock("../../services/api", () => ({
   adminAPI: {
     getAllCertificates: vi.fn(),
+    getAllCourses: vi.fn(),
+    generateTestCertificate: vi.fn(),
   },
 }));
 
@@ -34,6 +36,7 @@ const mockCertificatesData = {
         finalExamScore: 95,
         completionDate: "2024-01-15T00:00:00Z",
         issuedAt: "2024-01-15T10:00:00Z",
+        verificationCode: "VERIFY1",
       },
       {
         _id: "cert-2",
@@ -44,6 +47,7 @@ const mockCertificatesData = {
         finalExamScore: 88,
         completionDate: "2024-01-10T00:00:00Z",
         issuedAt: "2024-01-10T10:00:00Z",
+        verificationCode: "VERIFY2",
       },
       {
         _id: "cert-3",
@@ -54,6 +58,7 @@ const mockCertificatesData = {
         finalExamScore: 92,
         completionDate: "2024-02-01T00:00:00Z",
         issuedAt: "2024-02-01T10:00:00Z",
+        verificationCode: "VERIFY3",
       },
     ],
   },
@@ -73,6 +78,7 @@ describe("AdminCertificates Page", () => {
     vi.clearAllMocks();
     mockWindowOpen.mockClear();
     vi.mocked(adminAPI.getAllCertificates).mockResolvedValue(mockCertificatesData as any);
+    vi.mocked(adminAPI.getAllCourses).mockResolvedValue({ data: { courses: [] } } as any);
   });
 
   describe("Loading State", () => {
@@ -291,7 +297,7 @@ describe("AdminCertificates Page", () => {
         expect(screen.getByText("John Doe")).toBeInTheDocument();
       });
 
-      const sortSelect = screen.getByRole("combobox");
+      const sortSelect = screen.getByDisplayValue("Newest First");
       await user.selectOptions(sortSelect, "oldest");
 
       const certificates = screen.getAllByRole("heading", { level: 3 });
@@ -309,7 +315,7 @@ describe("AdminCertificates Page", () => {
         expect(screen.getByText("John Doe")).toBeInTheDocument();
       });
 
-      const sortSelect = screen.getByRole("combobox");
+      const sortSelect = screen.getByDisplayValue("Newest First");
       await user.selectOptions(sortSelect, "score");
 
       const certificates = screen.getAllByRole("heading", { level: 3 });
@@ -332,7 +338,7 @@ describe("AdminCertificates Page", () => {
       const verifyButtons = screen.getAllByRole("button", { name: /verify/i });
       await user.click(verifyButtons[0]);
 
-      expect(mockWindowOpen).toHaveBeenCalledWith(expect.stringContaining("/verify-certificate?code=MC-2024-"), "_blank");
+      expect(mockWindowOpen).toHaveBeenCalledWith(expect.stringContaining("/verify-certificate?certificateNumber=MC-2024-003&verificationCode=VERIFY3"), "_blank");
     });
   });
 

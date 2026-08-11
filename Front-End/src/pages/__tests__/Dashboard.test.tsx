@@ -39,6 +39,7 @@ const mockProgressData = {
       message: "Continue with Lesson 2 in Chapter 2",
       chapterNumber: 2,
       lessonNumber: 2,
+      lessonId: "lesson-5",
     },
     chapters: [
       {
@@ -48,6 +49,8 @@ const mockProgressData = {
         totalLessons: 3,
         completedLessons: 3,
         allLessonsCompleted: true,
+        isUnlocked: true,
+        introViewed: true,
         testPassed: true,
         testScore: 85,
         lessons: [
@@ -63,6 +66,8 @@ const mockProgressData = {
         totalLessons: 2,
         completedLessons: 1,
         allLessonsCompleted: false,
+        isUnlocked: true,
+        introViewed: true,
         testPassed: false,
         testScore: null,
         lessons: [
@@ -153,7 +158,7 @@ describe("Dashboard Page", () => {
 
       await waitFor(() => {
         expect(screen.getByText("4/5")).toBeInTheDocument();
-        expect(screen.getByText(/lessons complete/i)).toBeInTheDocument();
+        expect(screen.getByText(/lessons done/i)).toBeInTheDocument();
       });
     });
 
@@ -199,17 +204,18 @@ describe("Dashboard Page", () => {
       renderDashboard();
 
       await waitFor(() => {
-        expect(screen.getByText(/lesson progress/i)).toBeInTheDocument();
+        expect(screen.getByText(/course progress/i)).toBeInTheDocument();
         expect(screen.getByText("80%")).toBeInTheDocument(); // 4/5 = 80%
       });
     });
 
-    it("should display chapter progress percentage", async () => {
+    it("should display chapters done progress", async () => {
       renderDashboard();
 
       await waitFor(() => {
-        expect(screen.getByText(/chapter progress/i)).toBeInTheDocument();
-        expect(screen.getByText("50%")).toBeInTheDocument(); // 1/2 = 50%
+        expect(screen.getByText(/chapters done/i)).toBeInTheDocument();
+        const progressText = screen.getAllByText("1/2");
+        expect(progressText.length).toBeGreaterThan(0);
       });
     });
   });
@@ -224,15 +230,15 @@ describe("Dashboard Page", () => {
       });
     });
 
-    it('should navigate to lesson when "Start Lesson" clicked', async () => {
+    it('should navigate to lesson when "Continue Lesson" clicked', async () => {
       const user = userEvent.setup();
       renderDashboard();
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /start lesson/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /continue lesson/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("button", { name: /start lesson/i }));
+      await user.click(screen.getByRole("button", { name: /continue lesson/i }));
 
       expect(mockNavigate).toHaveBeenCalledWith("/lesson/lesson-5");
     });
@@ -245,6 +251,7 @@ describe("Dashboard Page", () => {
             type: "chapter-test",
             message: "Ready to take Chapter 2 test",
             chapterNumber: 2,
+            chapterId: "chapter-2",
           },
         },
       };
@@ -252,7 +259,7 @@ describe("Dashboard Page", () => {
       renderDashboard(null, chapterTestProgress);
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /take chapter test/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /take test/i })).toBeInTheDocument();
       });
     });
 
@@ -265,6 +272,7 @@ describe("Dashboard Page", () => {
             type: "chapter-test",
             message: "Ready to take Chapter 2 test",
             chapterNumber: 2,
+            chapterId: "chapter-2",
           },
         },
       };
@@ -272,10 +280,10 @@ describe("Dashboard Page", () => {
       renderDashboard(null, chapterTestProgress);
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /take chapter test/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /take test/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole("button", { name: /take chapter test/i }));
+      await user.click(screen.getByRole("button", { name: /take test/i }));
 
       expect(mockNavigate).toHaveBeenCalledWith("/chapter/chapter-2/test");
     });
@@ -312,7 +320,7 @@ describe("Dashboard Page", () => {
       renderDashboard(null, completedProgress);
 
       await waitFor(() => {
-        expect(screen.getByText(/view your certificates/i)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /view certificates/i })).toBeInTheDocument();
       });
     });
   });
@@ -547,7 +555,7 @@ describe("Dashboard Page", () => {
       await user.click(screen.getByRole("button", { name: /introduction to medical interpreting/i }));
 
       // Test should show as passed
-      expect(screen.getByText(/test passed \(85%\)/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/test passed/i).length).toBeGreaterThan(0);
     });
 
     it("should navigate to chapter test when clicked", async () => {
@@ -559,6 +567,8 @@ describe("Dashboard Page", () => {
             {
               ...mockProgressData.progress.chapters[1],
               allLessonsCompleted: true,
+              introViewed: true,
+              isUnlocked: true,
               lessons: [{ ...mockProgressData.progress.chapters[1].lessons[0] }, { ...mockProgressData.progress.chapters[1].lessons[1], completed: true }],
             },
           ],
