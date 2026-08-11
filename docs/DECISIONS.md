@@ -91,3 +91,47 @@ checkout. Account creation is not folded into the checkout flow.
 
 Accepted tradeoff: this loses some buyers at the verification step.
 Chosen for simplicity and because it matches the existing auth flow.
+
+## D-007: /products catalog
+Date: 2026-08-11
+
+Four cards on the catalog page:
+
+1. Course — one-time purchase. Live at launch.
+2. Audio Practice — one-time purchase. Card visible with "Coming
+   soon"; not buyable at launch (recording takes time).
+3. Note-Taking Material — free. Button reads "Get it free", not "Buy".
+   No checkout, no entitlement, no purchase record — gated on having
+   an account only. Sourced from open-source material; license must be
+   verified as permitting commercial redistribution before launch.
+4. Post-Course Services — monthly subscription, two tiers.
+
+Owned products render greyed out and labelled "Owned".
+
+Bundles and multi-product discounts are post-launch, not v1.
+
+## D-008: Post-course subscription
+Date: 2026-08-11
+
+Two tiers, monthly billing only. No annual option at launch.
+
+- Tier 1: CV training + job postings feed + HR outreach email templates
+- Tier 2: everything in Tier 1, plus we write the CV and prepare the
+  application emails. The student sends them (see PRODUCT.md — we never
+  hold student credentials).
+
+Mechanics:
+- Cancellation: access continues until the end of the paid period.
+- Does NOT require owning the course. Anyone can subscribe.
+- Tier switching allowed mid-cycle; upgrading requires paying the
+  difference.
+
+## D-009: Promo codes are launch-blocking
+Date: 2026-08-11
+
+Required before Paymob goes live — retrofitting discounts into a live
+payment flow is worse than building it in.
+
+Minimum system: code, discount type (percent or fixed), value, expiry
+date, max total uses, max uses per user, and which products it applies
+to.
