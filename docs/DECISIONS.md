@@ -265,3 +265,43 @@ access continues to the end of the paid period (D-008).
 OPEN: Egyptian consumer protection law may mandate a distance-selling
 return window for digital goods. A policy more restrictive than the law
 is unenforceable. Confirm with a local lawyer before publishing.
+
+## D-016: /account
+
+Date: 2026-08-11
+
+Sections:
+
+- Profile: name (editable). Email display-only — changing it requires
+  re-verification, out of scope for v1. Change password (current + new
+  - confirm).
+- Your access: read-only list of owned entitlements — course,
+  subscription tier, audio practice when it exists.
+- Subscription: current tier, next billing date, switch tier, cancel.
+  Cancelling shows "access until [date]" per D-008, framed as
+  information rather than a warning.
+- Danger zone: delete account.
+
+Account deletion: anonymize the user record, preserve order records.
+Egypt's Personal Data Protection Law grants deletion rights; tax and
+accounting obligations require financial records to survive. Issued
+certificates REMAIN VERIFIABLE after deletion — employers verify them,
+and deleting an account must not invalidate someone's credential.
+
+Email is permanent in v1. Accepted cost: a user who mistypes their
+email at registration has no self-service fix.
+
+## D-017: /account/purchases
+
+Date: 2026-08-11
+
+List of all orders: date, product, amount, status, order number.
+Failed and pending attempts are shown, not hidden — someone who
+believes they paid needs to see what actually happened. Receipt link
+per order.
+
+OPEN: Egyptian e-invoicing obligations. If the business is registered
+(and Paymob approval will require some form of registration), compliant
+tax invoices may be required rather than simple receipts. Confirm
+during Paymob onboarding — building receipts and retrofitting invoices
+later is more work than knowing up front.
