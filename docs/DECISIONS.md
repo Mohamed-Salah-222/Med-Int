@@ -338,3 +338,31 @@ capturing an email address. This is the highest-intent list available
 Admin can export it. Commitment: that list actually gets emailed at
 launch. A capture form feeding a list nobody uses is worse than a
 dead card.
+
+## D-019: /admin/orders
+
+Date: 2026-08-11
+
+List view: date, buyer, product, amount, status, Paymob transaction
+ID. Filterable by status and date range. Detail view per order showing
+the full webhook history for that transaction.
+
+Manual entitlement grant: when Paymob reports success but the webhook
+fails, an admin can grant the entitlement from this page — logged, with
+a reason recorded. Fixing this by editing the database directly is not
+acceptable.
+
+Webhook failure handling:
+
+- Every webhook that fails signature verification or errors during
+  processing is recorded AND emailed to the admin immediately. A page
+  nobody checks daily does not catch a silent failure — and the failure
+  mode is a paying customer with no access who may charge back rather
+  than complain.
+- Orders stuck in "pending" past a threshold are flagged. This catches
+  the other half of the problem: webhooks that never arrived at all.
+
+OPEN: whether Paymob supports API-initiated refunds, or whether refunds
+are processed in their dashboard and recorded here manually. Determine
+during onboarding. This changes what the refund action on this page
+does.
