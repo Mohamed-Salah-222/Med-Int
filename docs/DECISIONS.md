@@ -305,3 +305,36 @@ OPEN: Egyptian e-invoicing obligations. If the business is registered
 tax invoices may be required rather than simple receipts. Confirm
 during Paymob onboarding — building receipts and retrofitting invoices
 later is more work than knowing up front.
+
+## D-018: /admin/products
+
+Date: 2026-08-11
+
+Products are database records, not code. A new product must not
+require a deploy.
+
+Admin can create and edit:
+
+- Name, slug, description
+- Price (EGP)
+- Type: one-time or subscription
+- Status: draft / live / coming soon / archived
+- Entitlement granted on purchase
+
+The entitlement field is what connects a purchase to access (D-002).
+Without it every new product needs a code change.
+
+Price changes: allowed on live products. Orders store the amount
+actually paid, never a reference to the current price — historical
+orders must never change when a price does. Price must be validated:
+positive, above a defined minimum, confirmation required on change.
+
+Deletion: archive only. A product anyone has purchased can never be
+hard-deleted — the order records and entitlements reference it.
+
+"Coming soon" products show a "Notify me when this launches" button
+capturing an email address. This is the highest-intent list available
+— people who saw the price and wanted the product before it existed.
+Admin can export it. Commitment: that list actually gets emailed at
+launch. A capture form feeding a list nobody uses is worse than a
+dead card.
