@@ -192,3 +192,76 @@ holding the session, and often a different device. That loses the
 stored product intent and lands the user without a session. The typed
 code keeps the user in the original tab with session and intent
 intact.
+
+## D-012: Checkout flow
+
+Date: 2026-08-11
+
+One product at a time. No cart — four products, two buyable at launch,
+one free. A cart is machinery with no buyer. Bundles, when they come,
+are just another product.
+
+Single page at /checkout, three sections:
+
+1. What you're buying, and the price
+2. Promo code field — applies inline, updates the total in place
+3. Pay button
+
+Currency: EGP. Buyers are Egyptian; ads target Egypt. No multi-currency
+handling at launch.
+
+## D-013: Paymob integration — hosted redirect
+
+Date: 2026-08-11
+
+The user is redirected to Paymob's hosted payment page and returns
+after. Card details never reach our server, which removes essentially
+all PCI scope. Embedded checkout looks better, costs significantly more
+work and risk, and is not worth it for a first launch.
+
+Entitlements are granted by the WEBHOOK, never by the success redirect.
+The redirect is only the user's browser: it can be forged, lost when a
+tab closes, or fire before the payment settles.
+
+- Webhook verifies the signature, grants the entitlement, and is
+  idempotent — providers retry.
+- The success page READS state, never creates it. If the webhook has
+  not landed yet, it polls and shows "confirming your payment".
+- Subscriptions produce recurring webhooks. A renewal extends access;
+  a failed renewal ends access at the end of the paid period.
+
+Order records are written for every attempt — pending, paid, failed.
+Required for /account/purchases, /admin/orders, and for answering
+"I paid and got nothing".
+
+## D-014: Checkout outcome pages
+
+Date: 2026-08-11
+
+/checkout/success — a receipt, not the content. Order number, what was
+bought, amount paid, and a prominent button into the product. People
+need proof the money went somewhere before they trust the site.
+
+/checkout/failed — its own page, not checkout with a red banner. Shows
+Paymob's reason where one is given, plus a retry button. Returning
+someone to a form with an error reads like the site broke.
+
+## D-015: Refund policy
+
+Date: 2026-08-11
+
+One-time products: full refund within 48 hours of purchase, no
+questions asked, provided the final exam has not been passed.
+
+The only thing a refund actually costs is an issued certificate — that
+is the asset. Reading lessons costs nothing marginal. An earlier draft
+tied refunds to chapters consumed; that was dropped because "consumed"
+invites disputes with an already-unhappy buyer, and "no questions
+asked" is a stronger line on a sales page.
+
+Subscriptions: monthly, no refunds, no partial months. Cancel anytime,
+access continues to the end of the paid period (D-008).
+
+OPEN: Egyptian consumer protection law may mandate a distance-selling
+return window for digital goods. A policy more restrictive than the law
+is unenforceable. Confirm with a local lawyer before publishing.
