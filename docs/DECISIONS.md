@@ -366,3 +366,26 @@ OPEN: whether Paymob supports API-initiated refunds, or whether refunds
 are processed in their dashboard and recorded here manually. Determine
 during onboarding. This changes what the refund action on this page
 does.
+
+## D-020: /dashboard
+
+Date: 2026-08-11
+
+Composed of blocks that render based on entitlements (D-002), not a
+single course-owner assumption. The current page assumes course
+ownership and breaks for subscription-only Students.
+
+Blocks:
+
+- Course (entitlement: course) — continue card, learning path, chapter
+  locks, chapter tests, final exam, certificate
+- Post-course services (entitlement: post-course) — your CV, job feed,
+  application emails where Tier 2
+- Audio practice (entitlement: audio) — when it exists
+
+Own one, see one. Own both, see both, course first.
+
+Primary element: the continue/next-action card, presented as the
+largest thing on the page — chapter name, lesson title, position in
+the course, one large button. Not a text label. If a student has to
+search the dashboard for what to do next, the page has failed.
