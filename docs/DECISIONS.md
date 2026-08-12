@@ -23,14 +23,16 @@ Consequence: A validation rule is required at chapter publish time.
 Tracked as an M2 task.
 
 ## D-002: Access is role + entitlements array
+
 Date: 2026-08-11
 Decided by: Owner
 
 Roles (what kind of account):
-- User   — can see landing, product pages, course overview. No content.
+
+- User — can see landing, product pages, course overview. No content.
 - Student — has access to content. Which content is defined by
   entitlements.
-- Admin  — full control: create, edit, delete, maintenance mode.
+- Admin — full control: create, edit, delete, maintenance mode.
 
 Entitlements (what the account has access to):
 An array on the user, e.g. ["course", "audio", "notes", "post-course"].
@@ -43,6 +45,7 @@ the current model where role alone grants access and an admin sets it
 by hand (roleMiddleware.ts:19, adminController.ts:1111).
 
 ## D-003: SuperVisor role is removed
+
 Date: 2026-08-11
 
 An undocumented role with admin-level access exists in the codebase
@@ -54,6 +57,7 @@ Decision: remove SuperVisor entirely. Roles are User, Student, Admin
 (see D-002). Any existing SuperVisor accounts are migrated to Admin.
 
 ## D-004: Landing page states
+
 Date: 2026-08-11
 
 Four states, one page:
@@ -70,12 +74,14 @@ Four states, one page:
 - Admin: same as any other state, plus preview mode (D-005).
 
 ## D-005: Admin preview mode
+
 Date: 2026-08-11
 
 Admins can render the UI as if they were anonymous, logged-in-with-
 nothing, or logged-in-with-entitlements, via a floating control.
 
 Rules:
+
 - Display only. It never changes what the API grants. The admin's real
   token retains admin access at all times. Client-side entitlement
   faking must not be mirrored server-side.
@@ -84,6 +90,7 @@ Rules:
 Not launch-blocking. Built after checkout works.
 
 ## D-006: Purchase requires a verified account
+
 Date: 2026-08-11
 
 Anonymous users clicking Enroll go to /register, verify email, then
@@ -93,6 +100,7 @@ Accepted tradeoff: this loses some buyers at the verification step.
 Chosen for simplicity and because it matches the existing auth flow.
 
 ## D-007: /products catalog
+
 Date: 2026-08-11
 
 Four cards on the catalog page:
@@ -111,6 +119,7 @@ Owned products render greyed out and labelled "Owned".
 Bundles and multi-product discounts are post-launch, not v1.
 
 ## D-008: Post-course subscription
+
 Date: 2026-08-11
 
 Two tiers, monthly billing only. No annual option at launch.
@@ -121,12 +130,14 @@ Two tiers, monthly billing only. No annual option at launch.
   hold student credentials).
 
 Mechanics:
+
 - Cancellation: access continues until the end of the paid period.
 - Does NOT require owning the course. Anyone can subscribe.
 - Tier switching allowed mid-cycle; upgrading requires paying the
   difference.
 
 ## D-009: Promo codes are launch-blocking
+
 Date: 2026-08-11
 
 Required before Paymob goes live — retrofitting discounts into a live
@@ -135,3 +146,29 @@ payment flow is worse than building it in.
 Minimum system: code, discount type (percent or fixed), value, expiry
 date, max total uses, max uses per user, and which products it applies
 to.
+
+## D-010: /products/course — course detail page
+
+Date: 2026-08-11
+
+Moves from /course to /products/course. Every product gets a detail
+page under /products/:slug. Redirect /course → /products/course to
+preserve existing links.
+
+Content (current page is largely correct and stays):
+
+- Course summary
+- Curriculum: chapter titles only. Lesson titles are NOT shown to
+  non-buyers — enough to gauge value, not enough to copy the outline.
+- Career/salary context cards
+- Post-course services mention
+- Enrollment CTA
+
+States:
+
+- Anonymous → CTA goes to /register (D-006)
+- Logged in, doesn't own → CTA goes to checkout
+- Owns it → page renders with an "Owned" banner at the top and a
+  prominent "Go to dashboard" button. No redirect. The sales page
+  stays reachable and shareable.
+- Admin → same as any state, per preview mode (D-005)
