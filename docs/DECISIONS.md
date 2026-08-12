@@ -172,3 +172,23 @@ States:
   prominent "Go to dashboard" button. No redirect. The sales page
   stays reachable and shareable.
 - Admin → same as any state, per preview mode (D-005)
+
+## D-011: Registration and email verification
+
+Date: 2026-08-11
+
+Registration collects name, email, password. No additional fields.
+
+Intent carrying: when a user reaches /register from a product page,
+the intended product is stored and carried through verification. After
+verifying, they land on that product's checkout rather than a generic
+page. If no intent was set, they land on /products.
+
+This directly mitigates the conversion loss accepted in D-006.
+
+Email verification stays a typed code, not a click-a-link. A link
+opens in whatever browser the mail client chooses — often not the one
+holding the session, and often a different device. That loses the
+stored product intent and lands the user without a session. The typed
+code keeps the user in the original tab with session and intent
+intact.
