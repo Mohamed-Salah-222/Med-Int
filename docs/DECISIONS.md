@@ -389,3 +389,102 @@ Primary element: the continue/next-action card, presented as the
 largest thing on the page — chapter name, lesson title, position in
 the course, one large button. Not a text label. If a student has to
 search the dashboard for what to do next, the page has failed.
+
+## D-021: Lesson chatbot is removed
+
+Date: 2026-08-11
+
+Built and live in LessonView.tsx:179, listed as post-launch in
+PRODUCT.md. Implementation quality unknown; rate limiting may be
+client-side only.
+
+Decision: remove it. Students already have ChatGPT — an unscoped
+assistant adds nothing they can't get elsewhere, while carrying real
+costs: uncapped API spend on a paid product, and an LLM answering
+medical questions on a medical training site.
+
+A properly scoped, lesson-grounded assistant may be reconsidered later.
+That would be a fresh build, not a rescue of this one.
+
+Removal includes the frontend component, the backend endpoint, and the
+openai dependency if nothing else uses it.
+
+## D-022: Design direction
+
+Date: 2026-08-11
+
+Serious, modern, educational. The design's function is to make the
+certificate feel legitimate — a graduate hands this credential to an
+employer, and a site that looks like a template course platform
+devalues it.
+
+Kept as-is structurally:
+
+- Landing page layout — 90-100% retained, changes limited to colors
+  and fonts
+- Register/login page layouts — structure kept, colors replaced
+
+Redesigned: everything else, via a design system rather than
+page-by-page. Type scale, spacing scale, color palette, and component
+styles defined once and applied throughout.
+
+Known inconsistencies to resolve:
+
+- Final exam uses a purple theme against teal/navy elsewhere
+  (FinalExamView.tsx:291)
+- Gradients used inconsistently across Dashboard and QuizView
+
+Sequencing: the design system is applied AFTER the missing pages are
+built. Designing first and then adding 11 pages guarantees drift.
+
+## D-023: Design system
+
+Date: 2026-08-12
+
+Built from scratch. The previous look — navy plus gradients — was
+generic; the auth pages ran a separate sage palette. One system now.
+
+Palette:
+--ink #16191D headings, primary text
+--slate #4A5058 body text
+--muted #8A8D8A captions, metadata
+--rule #E5E2DA borders, dividers
+--paper #FAF8F3 page background
+--surface #FFFFFF cards
+--primary #0F4C3F buttons, links, actions
+--primary-hover #146553
+--brass #9A7B3F certificates and seals ONLY
+--success #2F6B4C
+--warning #8A6210
+--danger #A32B23
+
+Reasoning:
+
+- Warm paper background, not white. Documents and diplomas are warm;
+  pure white reads as SaaS dashboard.
+- Deep green primary, not medical blue. Blue is what every health
+  startup uses. Green reads academic and is uncommon in EdTech.
+- Brass is scarce by rule — certificate borders, seals, completion
+  states. Never a button or link. Scarcity is what makes it read as
+  valuable.
+- Ink rather than pure black. Slight cool cast; pure black on warm
+  paper reads harsh.
+- Zero gradients anywhere. Every existing gradient is removed.
+
+Typography:
+Headings Fraunces or Source Serif 4, 600
+Body Inter, 400/500
+Numbers Inter, tabular figures
+
+A serif headline is the institutional signal — certifying bodies,
+universities, and journals use serif. Inter for body because there are
+63 lessons of reading.
+
+Scale:
+Type 3 / 2.25 / 1.75 / 1.375 / 1.125 / 1 / 0.875 rem
+Spacing 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 px
+Radius 4px controls, 8px cards. Nothing rounder.
+Borders 1px --rule. No shadows except focus rings.
+
+Nothing off-scale. Tight radii and hairline borders read as serious;
+large radii and soft shadows read as consumer app.
