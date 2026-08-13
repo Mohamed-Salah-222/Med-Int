@@ -488,3 +488,40 @@ Borders 1px --rule. No shadows except focus rings.
 
 Nothing off-scale. Tight radii and hairline borders read as serious;
 large radii and soft shadows read as consumer app.
+
+## D-024: Lesson glossary
+
+Date: 2026-08-13
+
+An existing, undocumented feature. Specific terms in lesson content are
+marked up; clicking or highlighting one opens a popup with its
+definition. Backed by a `glossaryterms` collection — 686 entries at time
+of writing. Added December 2025 ("Add interactive glossary tooltip
+feature for lessons").
+
+Decision: keep it. Terminology is the core subject of medical
+interpreting, and 686 curated terms is a genuine asset and a selling
+point.
+
+Required work:
+
+- Add to PRODUCT.md as a shipped feature
+- Include in the M1-002 content export — it is course content, not user
+  data
+- Admin CRUD for glossary terms (M7 admin work) — currently unknown
+  whether one exists
+- Protect during M4 HTML sanitisation: whatever markup carries the
+  glossary markers must survive sanitising. Stripping it would silently
+  break the feature across all 63 lessons.
+- Spec it in M2 like any other feature
+
+## D-025: Database is named `test`
+
+Date: 2026-08-13
+
+Mongoose's default, from a connection string with no database name.
+Functional but fragile — any tooling assuming a default, or a second
+app on the same cluster, collides with it.
+
+Decision: rename to `medint` before launch. Scheduled in M10, not
+urgent.
